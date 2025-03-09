@@ -1,0 +1,41 @@
+[build-system]
+requires = ["flit-core>=3.4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "snakemake-deployment-plugin-guix"
+version = "0.1.0"
+description = "Snakemake deployment plugin for GNU Guix"
+authors = [
+    { name = "Nicolas Graves", email = "ngraves@ngraves.fr" }
+]
+license = { file = "LICENSE" }
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "snakemake-interface-common>=1.17.4",
+    "snakemake-interface-deployment-plugins>=1.0.0",
+]
+
+[project.urls]
+repository = "https://github.com/nicolas-graves/snakemake-deployment-plugin-guix"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=24.0.0",
+    "flake8>=7.0.0",
+    "snakemake>=8.0.0",
+]
+
+[project.entry-points."snakemake.deployment_plugins"]
+guix = "snakemake_deployment_plugin_guix:plugin"
