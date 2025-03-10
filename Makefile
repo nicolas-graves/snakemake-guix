@@ -6,3 +6,9 @@ profile:
 
 build:
 	.guix-profile/guix/bin/guix build -f guix.scm -K
+
+install:
+	.guix-profile/guix/bin/guix install -L .guix/modules python-snakemake-deployment-plugin-guix python-wrapper
+
+development-shell:
+	.guix-profile/guix/bin/guix shell -D snakemake@8
