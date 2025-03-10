@@ -9,10 +9,10 @@ from pathlib import Path
 from snakemake_interface_software_deployment_plugins import EnvSpecSourceFile, SoftwareReport
 from snakemake_interface_software_deployment_plugins.tests import TestSoftwareDeploymentBase
 
-from snakemake_deployment_plugin_guix.guixenvspec import GuixEnvSpec
-from snakemake_deployment_plugin_guix.guixenv import GuixEnv
-from snakemake_deployment_plugin_guix.settings import GuixSettings
-from snakemake_deployment_plugin_guix.common import is_guix_available
+from snakemake_software_deployment_plugin_guix.guixenvspec import GuixEnvSpec
+from snakemake_software_deployment_plugin_guix.guixenv import GuixEnv
+from snakemake_software_deployment_plugin_guix.settings import GuixSettings
+from snakemake_software_deployment_plugin_guix.common import is_guix_available
 
 
 # Skip all tests if Guix is not available

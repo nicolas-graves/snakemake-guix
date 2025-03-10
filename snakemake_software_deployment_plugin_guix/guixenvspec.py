@@ -1,5 +1,9 @@
 from snakemake_interface_software_deployment_plugins import EnvSpecBase, EnvSpecSourceFile
 from typing import Iterable, List, Optional
+import sys
+
+# Import common_settings directly
+from snakemake_software_deployment_plugin_guix import common_settings
 
 class GuixEnvSpec(EnvSpecBase):
     def __init__(
@@ -16,6 +20,13 @@ class GuixEnvSpec(EnvSpecBase):
 
         # Must call this at the end of init
         self.technical_init()
+
+    def technical_init(self):
+        """This has to be called by Snakemake upon initialization"""
+        self.within = None
+        self.fallback = None
+        # Use the imported common_settings instead of trying to access via __module__
+        self.kind = common_settings.provides
 
     @classmethod
     def identity_attributes(cls) -> Iterable[str]:

@@ -5,6 +5,7 @@ import tempfile
 import shutil
 from pathlib import Path
 from typing import List, Optional, Iterable, Union
+import asyncio
 
 from snakemake_interface_software_deployment_plugins import (
     EnvBase, EnvSpecBase, DeployableEnvBase, SoftwareReport

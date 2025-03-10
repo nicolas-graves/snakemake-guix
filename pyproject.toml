@@ -3,9 +3,9 @@ requires = ["flit-core>=3.4"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "snakemake-deployment-plugin-guix"
+name = "snakemake-software-deployment-plugin-guix"
 version = "0.1.0"
-description = "Snakemake deployment plugin for GNU Guix"
+description = "Snakemake software deployment plugin for GNU Guix"
 authors = [
     { name = "Nicolas Graves", email = "ngraves@ngraves.fr" }
 ]
@@ -23,11 +23,11 @@ classifiers = [
 ]
 dependencies = [
     "snakemake-interface-common>=1.17.4",
-    "snakemake-interface-deployment-plugins>=1.0.0",
+    "snakemake-interface-software-deployment-plugins>=0.6.1",
 ]
 
 [project.urls]
-repository = "https://github.com/nicolas-graves/snakemake-deployment-plugin-guix"
+repository = "https://github.com/nicolas-graves/snakemake-software-deployment-plugin-guix"
 
 [project.optional-dependencies]
 dev = [
@@ -37,5 +37,5 @@ dev = [
     "snakemake>=8.0.0",
 ]
 
-[project.entry-points."snakemake.deployment_plugins"]
-guix = "snakemake_deployment_plugin_guix:plugin"
+[project.entry-points."snakemake.software_deployment_plugins"]
+guix = "snakemake_software_deployment_plugin_guix"
