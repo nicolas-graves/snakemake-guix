@@ -1,103 +1,138 @@
-"""Guix environment implementation for Snakemake."""
-
+import asyncio
+import hashlib
 import os
-import sys
+import shutil
 import subprocess
 import tempfile
-import shutil
-import hashlib
 from pathlib import Path
-import re
-from typing import List, Dict, Optional, Union, Any, Tuple, Iterable
+from typing import Iterable, Optional
 
-from snakemake_interface_common.exceptions import WorkflowError
 from snakemake_interface_software_deployment_plugins import (
-    EnvBase,
-    EnvSpecBase,
     DeployableEnvBase,
+    ArchiveableEnvBase,
+    EnvBase,
     SoftwareReport
 )
-
-from .common import (
-    logger,
-    get_environment_hash,
-    run_command,
-    ensure_directory,
-    is_guix_available,
-)
-from .manifest import GuixManifest, create_default_channels_file
+from snakemake_software_deployment_plugin_guix.guixenvspec import GuixEnvSpec
+from snakemake_software_deployment_plugin_guix.settings import GuixSettings
 
 
-class GuixDeploymentHelper:
-    """Helper class for Guix deployment."""
+class GuixEnv(EnvBase, DeployableEnvBase, ArchiveableEnvBase):
+    """Guix environment implementation."""
 
-    @staticmethod
-    def execute_command(
-        manifest_path: Path,
-        cmd: str,
-        channels_file: Optional[Path] = None,
-        container: bool = False,
-        time_machine: bool = True,
-        additional_args: Optional[str] = None,
-        shell_executable: str = 'bash',
-    ) -> subprocess.CompletedProcess:
-        """Execute a command in a Guix environment.
+    def __init__(
+        self,
+        spec: GuixEnvSpec,
+        within: Optional["EnvBase"],
+        settings: Optional[GuixSettings],
+        shell_executable: str,
+        deployment_prefix: Optional[Path] = None,
+        archive_prefix: Optional[Path] = None,
+    ):
+        super().__init__(
+            spec=spec,
+            within=within,
+            settings=settings,
+            shell_executable=shell_executable,
+            deployment_prefix=deployment_prefix,
+            archive_prefix=archive_prefix,
+        )
+        self.guix_spec = spec
+        self.guix_settings = settings or GuixSettings()
 
-        Args:
-            manifest_path: Path to the manifest file
-            cmd: Command to execute
-            channels_file: Path to the channels file
-            container: Whether to use container isolation
-            time_machine: Whether to use guix time-machine
-            additional_args: Additional arguments to pass to guix
-            shell_executable: Shell to use for execution
+        # Create temp file for manifest if needed
+        self._temp_manifest_file = None
 
-        Returns:
-            CompletedProcess instance with return code, stdout, and stderr
+    def __del__(self):
+        # Clean up temporary files
+        if self._temp_manifest_file and os.path.exists(self._temp_manifest_file):
+            os.unlink(self._temp_manifest_file)
+
+    def decorate_shellcmd(self, cmd: str) -> str:
+        """Run the command in a Guix environment."""
+        manifest_file = self._get_manifest_path()
+
+        guix_cmd = "guix shell"
+
+        if self.guix_settings.container:
+            guix_cmd += " --container"
+
+        guix_cmd += f" -m {manifest_file} -- {cmd}"
+
+        return guix_cmd
+
+    def _get_manifest_path(self) -> str:
+        """Get the path to the manifest file to use."""
+        # Use specified manifest file if available
+        if self.guix_spec.manifest_file:
+            return str(self.guix_spec.manifest_file.path_or_uri)
+
+        # Create a manifest file from packages list if no manifest is provided
+        if not self._temp_manifest_file:
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.scm') as f:
+                package_str = '" "'.join(self.guix_spec.packages)
+                f.write(f'(specifications->manifest (list "{package_str}"))')
+                self._temp_manifest_file = f.name
+
+        return self._temp_manifest_file
+
+    def record_hash(self, hash_object) -> None:
+        """Record a hash that changes when the environment content changes."""
+        # Hash the manifest content
+        manifest_path = self._get_manifest_path()
+        with open(manifest_path, "rb") as f:
+            hash_object.update(f.read())
+
+        # Also hash the settings
+        hash_object.update(str(self.guix_settings.container).encode())
+        hash_object.update(str(self.guix_settings.time_machine).encode())
+
+        # Hash the packages list
+        for package in sorted(self.guix_spec.packages):
+            hash_object.update(package.encode())
+
+    def is_deployment_path_portable(self) -> bool:
+        """Guix deployments are generally portable."""
+        return True
+
+    async def deploy(self) -> None:
+        """Deploy the Guix environment."""
+        # Guix environments are based on manifests and are created on-the-fly
+        # No need for actual deployment since Guix handles this
+        manifest_path = self._get_manifest_path()
+
+        # Create a marker file to indicate deployment was attempted
+        os.makedirs(self.deployment_path, exist_ok=True)
+        with open(self.deployment_path / "deployed", "w") as f:
+            f.write("Guix environment deployed\n")
+
+        # Also copy the manifest file to the deployment path for reference
+        shutil.copy(manifest_path, self.deployment_path / "manifest.scm")
+
+    def remove(self) -> None:
+        """Remove the deployed environment."""
+        if self.deployment_path.exists():
+            shutil.rmtree(self.deployment_path)
+
+    async def archive(self) -> None:
+        """Archive the Guix environment.
+
+        For Guix, we just need to archive the manifest file.
         """
-        # Build the Guix command
-        guix_cmd = []
+        os.makedirs(self.archive_path, exist_ok=True)
 
-        if time_machine and channels_file:
-            guix_cmd = ["guix", "time-machine", "-C", str(channels_file), "--", "shell"]
-        else:
-            guix_cmd = ["guix", "shell"]
+        # Archive the manifest file
+        manifest_path = self._get_manifest_path()
+        shutil.copy(manifest_path, self.archive_path / "manifest.scm")
 
-        if container:
-            guix_cmd.append("--container")
+        # Create a metadata file
+        with open(self.archive_path / "metadata.txt", "w") as f:
+            f.write(f"Guix environment archived\n")
+            f.write(f"Container: {self.guix_settings.container}\n")
+            f.write(f"Packages: {', '.join(self.guix_spec.packages)}\n")
 
-        if additional_args:
-            guix_cmd.extend(additional_args.split())
-
-        guix_cmd.extend(["-m", str(manifest_path), "--"])
-
-        # Split the command if it's a string
-        if isinstance(cmd, str):
-            full_cmd = " ".join(guix_cmd) + " " + cmd
-            # Run the command with shell=True
-            logger.debug(f"Executing: {full_cmd}")
-            result = subprocess.run(
-                full_cmd,
-                shell=True,
-                executable=shell_executable,
-                check=False,
-                capture_output=True,
-                text=True
-            )
-        else:
-            # Combine the commands
-            full_cmd = guix_cmd + cmd
-            # Run the command without shell
-            logger.debug(f"Executing: {' '.join(full_cmd)}")
-            result = subprocess.run(
-                full_cmd,
-                check=False,
-                capture_output=True,
-                text=True
-            )
-
-        if result.returncode != 0:
-            logger.error(f"Command failed with exit code {result.returncode}")
-            logger.error(f"Standard error: {result.stderr}")
-
-        return result
+    def report_software(self) -> Iterable[SoftwareReport]:
+        """Report the software in the environment."""
+        # Return the specified packages
+        for package in self.guix_spec.packages:
+            yield SoftwareReport(name=package)

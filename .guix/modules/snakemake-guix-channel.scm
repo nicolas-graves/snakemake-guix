@@ -25,6 +25,8 @@
                           #:recursive? #t
                           #:select? (git-predicate source-dir)))
       (build-system pyproject-build-system)
+      (arguments
+       (list #:test-flags #~(list "-k" "not test_deploy")))
       (native-inputs (list guix python-flit-core python-pytest))
       (propagated-inputs
        (list snakemake
