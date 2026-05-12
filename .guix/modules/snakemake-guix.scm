@@ -261,7 +261,7 @@ implementing snakemake's software-deployment interface.")
                               "snakemake-software-deployment-plugin-envmodules"))
     (synopsis "Environment modules plugin for Snakemake")
     (description
-     "This package prvides a software deployment plugin for Snakemake
+     "This package provides a software deployment plugin for Snakemake
 using environment modules.")
     (license license:expat)))
 

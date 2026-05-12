@@ -1,15 +1,19 @@
-# Snakemake Deployment Plugin: Guix
+# Guix Snakemake Software Deployment Plugin
 
-This plugin provides [Guix](https://guix.gnu.org/) support for Snakemake workflows, allowing you to use Guix for software deployment. Guix offers fully reproducible environments through functional package management.
+This plugin provides [Guix](https://guix.gnu.org/) support for Snakemake workflows, allowing you to use Guix for software deployment. Guix offers fully reproducible environments through functional package management. This combination is the best of both worlds: Guix is best-in-class for reproducibility and transparency; Snakemake is best-in-class for convenience and usability.
 
-This plugin currently only exists on Guix, which is assumed to be installed on your system. install it just like you would install a guix package.
+Software deployment plugins have not formally landed in Snakemake, but I plan to continue and update this repository along development progress in the `feat/software-deployment-plugins` branch.  All commits and patches are recorded in `.guix/modules/snakemake-guix.scm`.
+
+Minimal guix knowledge is expected, but not much more than what you can find in this video https://10years.guix.gnu.org/video/guix-as-a-tool-for-computational-science/
+
+This plugin currently only exists on Guix, which is assumed to be installed on your system. Once you have this channel pulled, install the `python-snakemake-software-deployment-plugin-guix` just like you would install any guix package.
 
 ## Features
 
 - Use Guix environments for software deployment in Snakemake workflows
 - Specify environments via manifest files or package lists per rule
-- Support for isolated execution with Guix containers (`--container`)
-- Reproducibility via `guix time-machine` with pinned channels
+- Support for isolated execution with Guix containers (`--container`) out of the box
+- `guix time-machine`-like reproducibility via with pinned channels
 - Compatible with Snakemake 9.17+ plugin system (`--sdm guix`)
 
 ## Usage
