@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nicolas Graves <ngraves@ngraves.fr>
+Subject: [PATCH] fix: make `within` optional in software deployment factory
+
+The factory registered by register_in_global_variables requires `within`
+as a mandatory keyword-only argument, but Snakefiles call e.g.
+`guix(packages=["hello"])` at parse time without supplying it.
+`within` is Optional in EnvSpecBase.__init__ and defaults to None there,
+so default it to None in the factory as well.
+---
+ src/snakemake/deployment/__init__.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/snakemake/deployment/__init__.py b/src/snakemake/deployment/__init__.py
+index 1111111..2222222 100644
+--- a/src/snakemake/deployment/__init__.py
++++ b/src/snakemake/deployment/__init__.py
+@@ -219,7 +219,7 @@ class SoftwareDeploymentManager:
+         for kind, plugin in self.plugins.items():
+
+             def make_factory(plugin_val, kind_val):
+-                def factory(*args, within: EnvSpecBase, **kwargs):
++                def factory(*args, within: Optional[EnvSpecBase] = None, **kwargs):
+                     if args:
+                         raise WorkflowError(
+                             "Positional arguments are not allowed in "

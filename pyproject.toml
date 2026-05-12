@@ -5,7 +5,7 @@ build-backend = "flit_core.buildapi"
 [project]
 name = "snakemake-software-deployment-plugin-guix"
 version = "0.1.0"
-description = "Snakemake software deployment plugin for GNU Guix"
+description = "Snakemake software deployment plugin for Guix"
 authors = [
     { name = "Nicolas Graves", email = "ngraves@ngraves.fr" }
 ]

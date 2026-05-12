@@ -1,4 +1,4 @@
-;; Copyright © 2025 Nicolas Graves <ngraves@ngraves.fr>
+;; Copyright © 2025, 2026 Nicolas Graves <ngraves@ngraves.fr>
 
 (define-module (snakemake-guix-channel)
   #:use-module (git)
@@ -14,13 +14,7 @@
   #:use-module (gnu packages package-management)
   #:use-module (gnu packages python)
   #:use-module (gnu packages python-build)
-  #:use-module ((gnu packages python-science)
-                #:select (snakemake
-                          (python-snakemake-interface-common . python-snakemake-interface-common*)
-                          (python-snakemake-interface-executor-plugins . python-snakemake-interface-executor-plugins*)
-                          (python-snakemake-interface-report-plugins . python-snakemake-interface-report-plugins*)
-                          (python-snakemake-interface-software-deployment-plugins . python-snakemake-interface-software-deployment-plugins*)
-                          (python-snakemake-interface-storage-plugins . python-snakemake-interface-storage-plugins*)))
+  #:use-module ((gnu packages python-science) #:prefix guix:)
   #:use-module (gnu packages python-web)
   #:use-module (gnu packages python-xyz))
 
@@ -32,8 +26,8 @@
      (origin
        (method git-fetch)
        (uri (git-reference
-             (url "https://github.com/indigo-dc/udocker")
-             (commit version)))
+              (url "https://github.com/indigo-dc/udocker")
+              (commit version)))
        (file-name (git-file-name name version))
        (sha256
         (base32 "1nbsj3kwlnkr12ykl1xd0r2hykikhrs0z9wgfb26y2nxpf85z3rz"))))
@@ -42,22 +36,30 @@
     (arguments (list #:test-flags #~(list "-k" "not test_05__get_volume_bindings")))
     (native-inputs (list python-pytest python-setuptools))
     (home-page "https://github.com/indigo-dc/udocker")
-    (synopsis "Execute simple docker containers in batch or interactive systems without root privileges")
+    (synopsis "Execute simple docker containers without root privileges")
     (description
      "This package provides a basic user tool to execute simple docker containers in
 batch or interactive systems without root privileges.")
-    (license #f)))
+    (license license:asl2.0)))
 
 (define-public python-snakemake-interface-common
-  (package/inherit python-snakemake-interface-common*
+  (package/inherit guix:python-snakemake-interface-common
     (name "python-snakemake-interface-common")
     (version "1.23.0")
     (source
      (origin
-       (method url-fetch)
-       (uri (pypi-uri "snakemake_interface_common" version))
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/snakemake/snakemake-interface-common")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
        (sha256
-        (base32 "1k7smzydkwqgw32mrhbgwbs6ly0vqnnd03aa6rcpchb1lhqlblbf"))))
+        (base32 "1m6a7a81s999wgdfhvq8065aw6x4qr1ya811fsgjim57k6sf8yqg"))
+       (patches
+        (list
+         (local-file
+          (string-append (dirname (current-filename)) "/"
+                         "python-snakemake-interface-common-allow-missing.patch"))))))
     (build-system pyproject-build-system)
     (propagated-inputs
      (list python-argparse-dataclass
@@ -68,16 +70,23 @@ batch or interactive systems without root privileges.")
            python-setuptools))))
 
 (define-public python-snakemake-interface-executor-plugins
-  (package/inherit python-snakemake-interface-executor-plugins*
+  (package/inherit guix:python-snakemake-interface-executor-plugins
     (name "python-snakemake-interface-executor-plugins")
     (version "9.4.0")
     (source
      (origin
-       (method url-fetch)
-       (uri (pypi-uri "snakemake_interface_executor_plugins" version))
+       (method git-fetch)
+       (uri (git-reference
+              (url (string-append "https://github.com/snakemake/"
+                                  "snakemake-interface-executor-plugins"))
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
        (sha256
-        (base32 "0rn0ya8g0mxccp7zjy7wnw2bdblfjhzvd55dxpdamjzagf4khhcx"))))
-    (arguments '(#:tests? #f))
+        (base32 "1qz4cl5wyinhk191ivkxn0ghjjdicyvg6wq97b1bgn01qqfdvxkq"))))
+    (arguments
+     (list
+      #:test-backend #~'custom
+      #:test-flags #~(list "tests/tests.py")))
     (propagated-inputs (list python-snakemake-interface-common))))
 
 (define-public python-snakemake-interface-logger-plugins
@@ -86,28 +95,39 @@ batch or interactive systems without root privileges.")
     (version "2.0.1")
     (source
      (origin
-       (method url-fetch)
-       (uri (pypi-uri "snakemake_interface_logger_plugins" version))
+       (method git-fetch)
+       (uri (git-reference
+              (url (string-append "https://github.com/snakemake/"
+                                  "snakemake-interface-logger-plugins"))
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
        (sha256
-        (base32 "1q9hnkqgn620y1vqgzy69m77pc91xxcxr3jx4m93v68q7imwqffn"))))
+        (base32 "138z6i810v374h27gj9jxg5jwdz6ccyirgv2f2l313j1iivj7wfa"))))
     (build-system pyproject-build-system)
     (propagated-inputs (list python-snakemake-interface-common))
     (native-inputs (list python-hatchling))
-    (home-page #f)
-    (synopsis "Logger plugin interface for snakemake")
-    (description "Logger plugin interface for snakemake.")
-    (license #f)))
+    (home-page (string-append "https://github.com/snakemake/"
+                              "python-snakemake-interface-logger-plugins"))
+    (synopsis "Interface for Snakemake logger plugins")
+    (description
+     "This package provides a stable interface for interactions between Snakemake and
+its logger plugins.")
+    (license license:expat)))
 
 (define-public python-snakemake-interface-report-plugins
-  (package/inherit python-snakemake-interface-report-plugins*
+  (package/inherit guix:python-snakemake-interface-report-plugins
     (name "python-snakemake-interface-report-plugins")
     (version "2.0.1")
     (source
      (origin
-       (method url-fetch)
-       (uri (pypi-uri "snakemake_interface_report_plugins" version))
+       (method git-fetch)
+       (uri (git-reference
+              (url (string-append "https://github.com/snakemake/"
+                                  "snakemake-interface-report-plugins"))
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
        (sha256
-        (base32 "1y7y1ca484spryn4b8dfk38645vfrrq5vy41ikgghc4s4j6vich5"))))
+        (base32 "0rkbviqaxxc9lajf5rj06xh9acpxkzfsd0v20i9mcjj4wlry0wqf"))))
     (propagated-inputs (list python-snakemake-interface-common))))
 
 (define-public python-snakemake-interface-scheduler-plugins
@@ -116,28 +136,45 @@ batch or interactive systems without root privileges.")
     (version "2.0.2")
     (source
      (origin
-       (method url-fetch)
-       (uri (pypi-uri "snakemake_interface_scheduler_plugins" version))
+       (method git-fetch)
+       (uri (git-reference
+              (url (string-append "https://github.com/snakemake/"
+                                  "snakemake-interface-scheduler-plugins"))
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
        (sha256
-        (base32 "0incr9qhlx5lhjwnd2ld9jnwblzwsqa3yh1b5h9q7n8rj3xfi5r7"))))
+        (base32 "0bz33dl90cblzs9gki8kmklv9zkdh22883455541y5b5k70hr306"))))
     (build-system pyproject-build-system)
     (propagated-inputs (list python-snakemake-interface-common))
     (native-inputs (list python-hatchling))
-    (home-page #f)
-    (synopsis "Scheduler plugin interface for snakemake")
-    (description "Scheduler plugin interface for snakemake.")
-    (license #f)))
+    (home-page (string-append "https://github.com/snakemake/"
+                              "python-snakemake-interface-scheduler-plugins"))
+    (synopsis "Interface for Snakemake scheduler plugins")
+    (description
+     "This package provides a stable interface for interactions between Snakemake and
+its scheduler plugins.")
+    (license license:expat)))
+
+(define-public python-tenacity-9.1
+  (package/inherit python-tenacity
+    (version "9.1.4")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "tenacity" version))
+       (sha256
+        (base32 "0fprkhbrh26zm9jxpwmcz5vpr989hd4kpcqs110x0arz4r61vcxd"))))))
 
 (define-public python-snakemake-interface-storage-plugins
-  (package/inherit python-snakemake-interface-storage-plugins*
+  (package/inherit guix:python-snakemake-interface-storage-plugins
     (name "python-snakemake-interface-storage-plugins")
     (version "4.4.1")
     (source
      (origin
        (method git-fetch)
        (uri (git-reference
-             (url
-              "https://github.com/snakemake/snakemake-interface-storage-plugins")
+              (url (string-append "https://github.com/snakemake/"
+                                  "snakemake-interface-storage-plugins"))
              (commit (string-append "v" version))))
        (file-name (git-file-name name version))
        (sha256
@@ -145,28 +182,28 @@ batch or interactive systems without root privileges.")
     (propagated-inputs
      (list python-humanfriendly
            python-snakemake-interface-common
-           python-tenacity
+           python-tenacity-9.1
            python-throttler
            python-wrapt))))
 
 (define-public python-snakemake-interface-software-deployment-plugins
-  (package/inherit python-snakemake-interface-software-deployment-plugins*
+  (package/inherit guix:python-snakemake-interface-software-deployment-plugins
     (name "python-snakemake-interface-software-deployment-plugins")
     (version "0.17.0")
     (source
      (origin
-       (method url-fetch)
-       (uri (pypi-uri "snakemake_interface_software_deployment_plugins"
-                      version))
+       (method git-fetch)
+       (uri (git-reference
+              (url (string-append "https://github.com/snakemake/"
+                                  "snakemake-interface-software-deployment-plugins"))
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
        (sha256
-        (base32 "0jgkmz4224vg8msdl8rf9yzz8sc20s685pzfzhxvakhiaasdqznc"))))
+        (base32 "0z08dkn26hwj0wcvnasvvv4pxr2jgwbypp8lc83smd4brd51820x"))))
     (build-system pyproject-build-system)
     (arguments
      (list
-      #:test-flags
-      #~(list
-         ;; For a specific version of Python.
-         "--ignore=tests/test_py37.py")))
+      #:test-flags #~(list "--ignore=tests/test_py37.py")))
     (propagated-inputs (list python-argparse-dataclass
                              python-snakemake-interface-common))
     (native-inputs
@@ -174,60 +211,32 @@ batch or interactive systems without root privileges.")
            python-pytest
            python-snakemake-software-deployment-plugin-envmodules-bootstrap))))
 
-(define-public python-snakemake-software-deployment-plugin-conda
-  (package
-    (name "python-snakemake-software-deployment-plugin-conda")
-    (version "0.5.0")
-    (source
-     (origin
-       (method url-fetch)
-       (uri (pypi-uri "snakemake_software_deployment_plugin_conda" version))
-       (sha256
-        (base32 "0apbp77fxm18alw5fxvbq8dwj454pmsdmapyyl0l5mwsdsj070p0"))))
-    (build-system pyproject-build-system)
-    (arguments
-     (list
-      #:phases
-      #~(modify-phases %standard-phases
-          (delete 'sanity-check))))
-    (propagated-inputs
-     (list python-aiofiles
-           python-httpx
-           ;; python-py-rattler
-           python-pyyaml
-           python-snakemake-interface-common
-           python-snakemake-interface-software-deployment-plugins
-           ;; XXX: Is python-uv that hard to inject in Guix?
-           ;; python-uv
-           ))
-    (native-inputs (list python-hatchling))
-    (home-page #f)
-    (synopsis
-     "Software deployment plugin for Snakemake using rattler to deploy conda packages.")
-    (description
-     "Software deployment plugin for Snakemake using rattler to deploy conda packages.")
-    (license #f)))
-
 (define-public python-snakemake-software-deployment-plugin-container
   (package
     (name "python-snakemake-software-deployment-plugin-container")
     (version "0.6.0")
     (source
      (origin
-       (method url-fetch)
-       (uri (pypi-uri "snakemake_software_deployment_plugin_container" version))
+       (method git-fetch)
+       (uri (git-reference
+              (url (string-append "https://github.com/snakemake/"
+                                  "snakemake-software-deployment-plugin-container"))
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
        (sha256
-        (base32 "1mhnm2bw6315liwkksadfnjwzmal6ih13h24k3zq5qbqj00f1gbx"))))
+        (base32 "1g44v4ri0a4a9nn02jf1pbic7vya0m8zf5652gyc6hfxczkjv3rq"))))
     (build-system pyproject-build-system)
     (propagated-inputs
      (list python-snakemake-interface-common
            python-snakemake-interface-software-deployment-plugins
            python-udocker))
     (native-inputs (list python-hatchling))
-    (home-page #f)
-    (synopsis "")
-    (description #f)
-    (license #f)))
+    (home-page (string-append "https://github.com/snakemake/"
+                              "snakemake-software-deployment-plugin-container"))
+    (synopsis "Run Snakemake within a rootless container")
+    (description "This package provides a generic container plugin
+implementing snakemake's software-deployment interface.")
+    (license license:expat)))
 
 (define-public python-snakemake-software-deployment-plugin-envmodules
   (package
@@ -235,39 +244,46 @@ batch or interactive systems without root privileges.")
     (version "0.2.0")
     (source
      (origin
-       (method url-fetch)
-       (uri (pypi-uri "snakemake_software_deployment_plugin_envmodules"
-                      version))
+       (method git-fetch)
+       (uri (git-reference
+              (url (string-append "https://github.com/snakemake/"
+                                  "snakemake-software-deployment-plugin-envmodules"))
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
        (sha256
-        (base32 "1yc7dfksi4n7cjn0zfqdwwvhw4ak6061jnjy24vhb8q24r9a08z1"))))
+        (base32 "1764502r8vqg3k61wjc81rfi5v89rxj0njhpcfynxxx82rnda0vv"))))
     (build-system pyproject-build-system)
     (propagated-inputs
      (list python-snakemake-interface-common
            python-snakemake-interface-software-deployment-plugins))
     (native-inputs (list python-hatchling))
-    (home-page #f)
-    (synopsis
-     "Software deployment plugin for Snakemake using environment modules.")
+    (home-page (string-append "https://github.com/snakemake/"
+                              "snakemake-software-deployment-plugin-envmodules"))
+    (synopsis "Environment modules plugin for Snakemake")
     (description
-     "Software deployment plugin for Snakemake using environment modules.")
-    (license #f)))
+     "This package prvides a software deployment plugin for Snakemake
+using environment modules.")
+    (license license:expat)))
 
 (define-public python-snakemake-software-deployment-plugin-envmodules-bootstrap
   (package/inherit python-snakemake-software-deployment-plugin-envmodules
     (arguments
-     (substitute-keyword-arguments arguments
+     (substitute-keyword-arguments
+         (package-arguments python-snakemake-software-deployment-plugin-envmodules)
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
             (delete 'sanity-check)))))
     (propagated-inputs
-     (modify-inputs propagated-inputs
+     (modify-inputs
+         (package-propagated-inputs python-snakemake-software-deployment-plugin-envmodules)
        (delete "python-snakemake-interface-software-deployment-plugins")))))
 
 (define-public snakemake-with-software-deployment
   ;; Commit of branch feat/software-deployment-plugins
   (let ((commit "f2029839945cfe66eeef6fc3c1ddf779a76f58ce")
-        (revision "0"))
-    (package/inherit snakemake
+        (revision "0")
+        (current-dir (string-append (dirname (current-filename)) "/")))
+    (package/inherit guix:snakemake
       (name "snakemake")
       ;; Version of last common commit with master branch
       (version (git-version "9.17.0" revision commit))
@@ -281,24 +297,39 @@ batch or interactive systems without root privileges.")
          (sha256
           (base32 "11079q76kwm9kyvnri28n7f22zqv40zica50wwv1sm3n95avsqwr"))
          (patches
-          (list (local-file (string-append (dirname (current-filename))
-                                           "/4009.patch"))))))
+          (list
+           (local-file
+            (string-append current-dir "snakemake-4009.patch"))
+           (local-file
+            (string-append current-dir
+                           "snakemake-allow-without-conda.patch"))
+           (local-file
+            (string-append current-dir
+                           "snakemake-factory-within-default.patch"))))))
       (arguments
-       (substitute-keyword-arguments (package-arguments snakemake)
-         ((#:tests? tests? #t) #f)
+       (substitute-keyword-arguments (package-arguments guix:snakemake)
          ((#:test-flags test-flags)
           #~(cons* "--ignore=tests/test_args.py"
+                   "--ignore=tests/test_jupyter_notebook_pathlike.py"
                    "--ignore=tests/test_persistence.py"
+                   "--deselect=tests/test_script.py::TestBashEncoder"
+                   "--deselect=tests/test_sourcecache.py::test_github_file_fetch"
                    #$test-flags))
          ((#:phases phases #~%standard-phases)
           #~(modify-phases #$phases
-              ;; Let that slide for now
-              ;; Requirement.parse('uv<0.7.0,>=0.6.5'), {'snakemake-software-deployment-plugin-conda'}
-              (delete 'sanity-check)
+              ;; XXX: This package requires a lot of development
+              ;; (python-uv, python-py-rattler), but IMHO upstream
+              ;; should make it an optional requirement...
+              ;; python-snakemake-software-deployment-plugin-conda
+              (add-after 'unpack 'relax-requirements
+                (lambda _
+                  (substitute* "pyproject.toml"
+                    (("\"snakemake-software-deployment-plugin-conda.*\",")
+                     ""))))
               (delete 'patch-version)
               (delete 'call-wrapper-not-wrapped-snakemake)))))
       (propagated-inputs
-       (modify-inputs (package-propagated-inputs snakemake)
+       (modify-inputs (package-propagated-inputs guix:snakemake)
          (replace "python-snakemake-interface-common"
            python-snakemake-interface-common)
          (replace "python-snakemake-interface-executor-plugins"
@@ -310,30 +341,31 @@ batch or interactive systems without root privileges.")
          (replace "python-snakemake-interface-software-deployment-plugins"
            python-snakemake-interface-software-deployment-plugins)
          (append python-snakemake-interface-software-deployment-plugins
-                 ;; TODO We should be able to make that optional...
                  python-snakemake-interface-logger-plugins
                  python-snakemake-interface-scheduler-plugins
-                 python-snakemake-software-deployment-plugin-conda
                  python-snakemake-software-deployment-plugin-container
                  python-snakemake-software-deployment-plugin-envmodules)))
       (native-inputs
-       (modify-inputs native-inputs
+       (modify-inputs (package-native-inputs guix:snakemake)
          (append python-pytest python-setuptools-scm))))))
 
-(define-public python-snakemake-deployment-plugin-guix
+(define-public python-snakemake-software-deployment-plugin-guix
   (let* ((source-dir (dirname (dirname (dirname (current-filename)))))
          (repo (repository-open source-dir))
          (commit (oid->string (object-id (revparse-single repo "HEAD")))))
     (package
-      (name "python-snakemake-deployment-plugin-guix")
+      (name "python-snakemake-software-deployment-plugin-guix")
       (version (git-version "0.1.0" "0" commit))
       (source (local-file source-dir
                           #:recursive? #t
                           #:select? (git-predicate source-dir)))
       (build-system pyproject-build-system)
       (arguments
-       (list #:test-flags #~(list "-k" "not test_deploy")))
-      (native-inputs (list guix python-flit-core python-pytest))
+       ;; XXX: We would need access to builds with the guile daemon to be able
+       ;; to run those.
+       (list #:tests? #f))
+      (native-inputs
+       (list guix python-flit-core python-pytest))
       (propagated-inputs
        (list snakemake-with-software-deployment
              python-snakemake-interface-software-deployment-plugins))
@@ -343,4 +375,4 @@ https://github.com/nicolas-graves/snakemake-deployment-plugin-guix")
       (description "In development")
       (license license:gpl3+))))
 
-python-snakemake-deployment-plugin-guix
+python-snakemake-software-deployment-plugin-guix

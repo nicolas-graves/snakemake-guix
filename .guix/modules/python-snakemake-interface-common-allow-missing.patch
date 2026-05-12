@@ -1,0 +1,40 @@
+From de12dc04f474fa6b5b205340bf6980acb392a12c Mon Sep 17 00:00:00 2001
+Message-ID: <de12dc04f474fa6b5b205340bf6980acb392a12c.1778608960.git.ngraves@ngraves.fr>
+From: Nicolas Graves <ngraves@ngraves.fr>
+Date: Tue, 12 May 2026 19:50:57 +0200
+Subject: [PATCH] Allow using Snakemake without the Conda plugin
+
+---
+ .../plugin_registry/__init__.py                          | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/snakemake_interface_common/plugin_registry/__init__.py b/src/snakemake_interface_common/plugin_registry/__init__.py
+index a991b8e..226bb2c 100644
+--- a/src/snakemake_interface_common/plugin_registry/__init__.py
++++ b/src/snakemake_interface_common/plugin_registry/__init__.py
+@@ -4,6 +4,7 @@ __email__ = "johannes.koester@uni-due.de"
+ __license__ = "MIT"
+ 
+ from abc import ABC, abstractmethod
++import logging
+ import re
+ import types
+ import pkgutil
+@@ -94,7 +95,13 @@ class PluginRegistryBase(ABC, Generic[TPlugin]):
+                 self.module_prefix
+             ):
+                 continue
+-            module = importlib.import_module(moduleinfo.name)
++            try:
++                module = importlib.import_module(moduleinfo.name)
++            except ImportError as e:
++                logging.getLogger(__name__).warning(
++                    f"Failed to import plugin {moduleinfo.name}: {e}. Skipping."
++                )
++                continue
+             self.register_plugin(moduleinfo.name, module)
+ 
+     def register_plugin(self, name: str, plugin: types.ModuleType) -> None:
+-- 
+2.52.0
+
