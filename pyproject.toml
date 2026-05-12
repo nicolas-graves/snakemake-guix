@@ -22,8 +22,8 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
-    "snakemake-interface-common>=1.17.4",
-    "snakemake-interface-software-deployment-plugins>=0.6.1",
+    "snakemake-interface-common>=1.23.0",
+    "snakemake-interface-software-deployment-plugins>=0.17.0,<1.0",
 ]
 
 [project.urls]
@@ -34,8 +34,11 @@ dev = [
     "pytest>=7.0.0",
     "black>=24.0.0",
     "flake8>=7.0.0",
-    "snakemake>=8.0.0",
+    "snakemake>=9.17.0",
 ]
 
 [project.entry-points."snakemake.software_deployment_plugins"]
 guix = "snakemake_software_deployment_plugin_guix"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

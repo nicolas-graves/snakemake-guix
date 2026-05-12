@@ -1,49 +1,40 @@
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List, Optional, Union
+from typing import Iterable, Optional, Tuple, Union
 
 from snakemake_interface_software_deployment_plugins import EnvSpecBase, EnvSpecSourceFile
-from snakemake_software_deployment_plugin_guix.common import PROVIDES, create_dummy_manifest_file
+from snakemake_software_deployment_plugin_guix.common import common_settings  # noqa: F401
 
 
-class GuixEnvSpec(EnvSpecBase):
-    """Specification for a Guix environment."""
+@dataclass(eq=False)
+class EnvSpec(EnvSpecBase):
+    manifest_file: Optional[EnvSpecSourceFile] = None
+    packages: Tuple[str, ...] = field(default_factory=tuple)
 
-    def __init__(
-        self,
-        packages: Optional[List[str]] = None,
-        manifest_file: Optional[Union[str, Path]] = None,
-        conda_env_file: Optional[Union[str, Path]] = None,
-    ):
-        """Initialize the Guix environment specification.
+    def __post_init__(self):
+        if isinstance(self.manifest_file, (str, Path)):
+            self.manifest_file = EnvSpecSourceFile(self.manifest_file)
+        if isinstance(self.packages, list):
+            self.packages = tuple(self.packages)
 
-        Args:
-            packages: List of Guix packages to include in the environment
-            manifest_file: Path to a Guix manifest file
-            conda_env_file: Path to a conda environment file to convert to Guix
-        """
-        self.packages = packages or []
-
-        # Always provide a manifest file for testing purposes
-        if manifest_file is None and packages:
-            # For testing, ensure we always have a manifest file
-            manifest_file = create_dummy_manifest_file()
-
-        # Convert source paths to EnvSpecSourceFile objects when provided
-        self.manifest_file = EnvSpecSourceFile(manifest_file) if manifest_file else None
-        self.conda_env_file = EnvSpecSourceFile(conda_env_file) if conda_env_file else None
-
-        # Initialize base spec properties with a custom approach
-        self.within = None
-        self.fallback = None
-        self.kind = PROVIDES
-        self._obj_hash = None
+    @classmethod
+    def env_cls(cls):
+        from snakemake_software_deployment_plugin_guix.guixenv import Env
+        return Env
 
     @classmethod
     def identity_attributes(cls) -> Iterable[str]:
-        """Attributes that uniquely identify this environment."""
-        return ["packages", "manifest_file", "conda_env_file"]
+        yield "manifest_file"
+        yield "packages"
 
     @classmethod
     def source_path_attributes(cls) -> Iterable[str]:
-        """Attributes that represent source paths relative to the rule."""
-        return ["manifest_file", "conda_env_file"]
+        # manifest_file is handled manually in __post_init__ to stay optional
+        return ()
+
+    def __str__(self) -> str:
+        if self.manifest_file is not None:
+            return str(self.manifest_file.path_or_uri)
+        if self.packages:
+            return " ".join(self.packages)
+        return "guix"

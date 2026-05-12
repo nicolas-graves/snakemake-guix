@@ -1,48 +1,32 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
 
 from snakemake_interface_software_deployment_plugins.settings import (
     SoftwareDeploymentSettingsBase,
 )
-from snakemake_software_deployment_plugin_guix.common import get_default_channels_file
 
 
 @dataclass
-class GuixSettings(SoftwareDeploymentSettingsBase):
-    """Settings for the Guix software deployment plugin."""
-
+class Settings(SoftwareDeploymentSettingsBase):
     container: bool = field(
         default=False,
-        metadata={"help": "Run Guix with --container option for better isolation"}
+        metadata={"help": "Run guix shell with --container for better isolation."},
     )
-
-    time_machine: bool = field(
-        default=True,
-        metadata={"help": "Use guix time-machine for reproducibility"}
+    # Named no_time_machine with default=False rather than time_machine with default=True
+    # to work around a bug in argparse_dataclass: _handle_bool_type replaces the flag
+    # name with --no-{field.name} (unprefixed) when default=True, so the argument ends
+    # up registered as --no-time-machine with dest="time_machine" instead of the
+    # expected --sdm-guix-no-time-machine / sdm_guix_time_machine.
+    no_time_machine: bool = field(
+        default=False,
+        metadata={"help": "Disable guix time-machine (skips reproducibility pin)."},
     )
-
     channels_file: Optional[Path] = field(
         default=None,
-        metadata={"help": "Path to a Guix channels file"}
+        metadata={"help": "Path to a Guix channels file for use with time-machine."},
     )
-
     additional_args: Optional[List[str]] = field(
         default=None,
-        metadata={"help": "Additional arguments for guix shell"}
+        metadata={"help": "Additional arguments forwarded to guix shell."},
     )
-
-    auto_create_manifest: bool = field(
-        default=True,
-        metadata={"help": "Convert conda env files to Guix manifests"}
-    )
-
-    manifest_template: Optional[Path] = field(
-        default=None,
-        metadata={"help": "Path to a template manifest file"}
-    )
-
-    def __post_init__(self):
-        # If no channels file is provided, create a default one
-        if self.channels_file is None and self.time_machine:
-            self.channels_file = get_default_channels_file()

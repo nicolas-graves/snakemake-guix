@@ -1,14 +1,14 @@
 """Utilities for translating Conda environment specifications to Guix manifests."""
 
-import os
-import yaml
 import json
 import logging
 import re
 from pathlib import Path
-from typing import List, Dict, Optional, Set, Tuple, Any, Union
+from typing import Any, Dict, List, Union
 
-from .common import logger
+import yaml
+
+logger = logging.getLogger(__name__)
 
 # Common package name translations from Conda to Guix
 # This is a starting point and would need to be expanded

@@ -1,1 +1,4 @@
 .guix-profile
+**/__pycache__
+example/results
+example/.snakemake
