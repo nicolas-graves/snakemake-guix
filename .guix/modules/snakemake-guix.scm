@@ -1,7 +1,6 @@
 ;; Copyright © 2025, 2026 Nicolas Graves <ngraves@ngraves.fr>
 
-(define-module (snakemake-guix-channel)
-  #:use-module (git)
+(define-module (snakemake-guix)
   #:use-module (guix build-system pyproject)
   #:use-module (guix build-system python)
   #:use-module (guix download)
@@ -10,6 +9,7 @@
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (guix packages)
   #:use-module ((guix utils) #:select (substitute-keyword-arguments))
+  #:use-module (gnu packages)
   #:use-module (gnu packages check)
   #:use-module (gnu packages package-management)
   #:use-module (gnu packages python)
@@ -56,10 +56,7 @@ batch or interactive systems without root privileges.")
        (sha256
         (base32 "1m6a7a81s999wgdfhvq8065aw6x4qr1ya811fsgjim57k6sf8yqg"))
        (patches
-        (list
-         (local-file
-          (string-append (dirname (current-filename)) "/"
-                         "python-snakemake-interface-common-allow-missing.patch"))))))
+        (search-patches "python-snakemake-interface-common-allow-missing.patch"))))
     (build-system pyproject-build-system)
     (propagated-inputs
      (list python-argparse-dataclass
@@ -297,15 +294,9 @@ using environment modules.")
          (sha256
           (base32 "11079q76kwm9kyvnri28n7f22zqv40zica50wwv1sm3n95avsqwr"))
          (patches
-          (list
-           (local-file
-            (string-append current-dir "snakemake-4009.patch"))
-           (local-file
-            (string-append current-dir
-                           "snakemake-allow-without-conda.patch"))
-           (local-file
-            (string-append current-dir
-                           "snakemake-factory-within-default.patch"))))))
+          (search-patches "snakemake-4009.patch"
+                          "snakemake-allow-without-conda.patch"
+                          "snakemake-factory-within-default.patch"))))
       (arguments
        (substitute-keyword-arguments (package-arguments guix:snakemake)
          ((#:test-flags test-flags)
@@ -350,29 +341,31 @@ using environment modules.")
          (append python-pytest python-setuptools-scm))))))
 
 (define-public python-snakemake-software-deployment-plugin-guix
-  (let* ((source-dir (dirname (dirname (dirname (current-filename)))))
-         (repo (repository-open source-dir))
-         (commit (oid->string (object-id (revparse-single repo "HEAD")))))
-    (package
-      (name "python-snakemake-software-deployment-plugin-guix")
-      (version (git-version "0.1.0" "0" commit))
-      (source (local-file source-dir
-                          #:recursive? #t
-                          #:select? (git-predicate source-dir)))
-      (build-system pyproject-build-system)
-      (arguments
-       ;; XXX: We would need access to builds with the guile daemon to be able
-       ;; to run those.
-       (list #:tests? #f))
-      (native-inputs
-       (list guix python-flit-core python-pytest))
-      (propagated-inputs
-       (list snakemake-with-software-deployment
-             python-snakemake-interface-software-deployment-plugins))
-      (home-page "\
-https://github.com/nicolas-graves/snakemake-deployment-plugin-guix")
-      (synopsis "In development")
-      (description "In development")
-      (license license:gpl3+))))
+  (package
+    (name "python-snakemake-software-deployment-plugin-guix")
+    (version "0.2.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/nicolas-graves/snakemake-guix")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0jszc45rfhxp99zwlh7w6pwnnlv5kbnnlqj477gl07s2x5yjjkb1"))))
+    (build-system pyproject-build-system)
+    (arguments
+     ;; XXX: We would need access to builds with the guile daemon to be able
+     ;; to run those.
+     (list #:tests? #f))
+    (native-inputs
+     (list guix python-flit-core python-pytest))
+    (propagated-inputs
+     (list snakemake-with-software-deployment
+           python-snakemake-interface-software-deployment-plugins))
+    (home-page "https://github.com/nicolas-graves/snakemake-guix")
+    (synopsis "In development")
+    (description "In development")
+    (license license:gpl3+)))
 
 python-snakemake-software-deployment-plugin-guix

@@ -1,1 +1,1 @@
-.guix/modules/snakemake-guix-channel.scm
+.guix/modules/snakemake-guix.scm
