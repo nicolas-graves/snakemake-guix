@@ -1,11 +1,13 @@
 ;; Copyright © 2025, 2026 Nicolas Graves <ngraves@ngraves.fr>
 
-(define-module (snakemake-guix)
+(define-module (snakemake-guix packages)
   #:use-module (guix build-system pyproject)
   #:use-module (guix build-system python)
+  #:use-module (guix diagnostics)
   #:use-module (guix download)
   #:use-module (guix gexp)
   #:use-module (guix git-download)
+  #:use-module (guix i18n)
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (guix packages)
   #:use-module ((guix utils) #:select (substitute-keyword-arguments))
@@ -16,7 +18,46 @@
   #:use-module (gnu packages python-build)
   #:use-module ((gnu packages python-science) #:prefix guix:)
   #:use-module (gnu packages python-web)
-  #:use-module (gnu packages python-xyz))
+  #:use-module (gnu packages python-xyz)
+  #:use-module (ice-9 match)
+  #:use-module (srfi srfi-34)
+  #:export (snakemake-guix-patches))
+
+;;; Patch path infrastructure, adapted from nonguix.
+;;; 'search-patches' is syntax and cannot be overridden, so we provide
+;;; 'snakemake-guix-patches' for patches living under snakemake-guix/patches/.
+
+(define %snakemake-guix-root-directory
+  (letrec-syntax ((dirname* (syntax-rules ()
+                              ((_ file)
+                               (dirname file))
+                              ((_ file head tail ...)
+                               (dirname (dirname* file tail ...)))))
+                  (try      (syntax-rules ()
+                              ((_ (file things ...) rest ...)
+                               (match (search-path %load-path file)
+                                 (#f
+                                  (try rest ...))
+                                 (absolute
+                                  (dirname* absolute things ...))))
+                              ((_)
+                               #f))))
+    (try ("snakemake-guix/packages.scm" snakemake-guix/))))
+
+(define %snakemake-guix-patch-path
+  (make-parameter
+   (map (lambda (directory)
+          (if (string=? directory %snakemake-guix-root-directory)
+              (string-append directory "/snakemake-guix/patches")
+              directory))
+        %load-path)))
+
+(define (search-snakemake-guix-patch file-name)
+  (or (search-path (%snakemake-guix-patch-path) file-name)
+      (raise (formatted-message (G_ "~a: patch not found") file-name))))
+
+(define-syntax-rule (snakemake-guix-patches file-name ...)
+  (list (search-snakemake-guix-patch file-name) ...))
 
 (define-public python-udocker
   (package
@@ -56,7 +97,7 @@ batch or interactive systems without root privileges.")
        (sha256
         (base32 "1m6a7a81s999wgdfhvq8065aw6x4qr1ya811fsgjim57k6sf8yqg"))
        (patches
-        (search-patches "python-snakemake-interface-common-allow-missing.patch"))))
+        (snakemake-guix-patches "python-snakemake-interface-common-allow-missing.patch"))))
     (build-system pyproject-build-system)
     (propagated-inputs
      (list python-argparse-dataclass
@@ -278,8 +319,7 @@ using environment modules.")
 (define-public snakemake-with-software-deployment
   ;; Commit of branch feat/software-deployment-plugins
   (let ((commit "f2029839945cfe66eeef6fc3c1ddf779a76f58ce")
-        (revision "0")
-        (current-dir (string-append (dirname (current-filename)) "/")))
+        (revision "0"))
     (package/inherit guix:snakemake
       (name "snakemake")
       ;; Version of last common commit with master branch
@@ -294,9 +334,9 @@ using environment modules.")
          (sha256
           (base32 "11079q76kwm9kyvnri28n7f22zqv40zica50wwv1sm3n95avsqwr"))
          (patches
-          (search-patches "snakemake-4009.patch"
-                          "snakemake-allow-without-conda.patch"
-                          "snakemake-factory-within-default.patch"))))
+          (snakemake-guix-patches "snakemake-4009.patch"
+                                  "snakemake-allow-without-conda.patch"
+                                  "snakemake-factory-within-default.patch"))))
       (arguments
        (substitute-keyword-arguments (package-arguments guix:snakemake)
          ((#:test-flags test-flags)

@@ -3,7 +3,7 @@
              (guix gexp)
              (guix git-download)
              (guix packages)
-             (snakemake-guix))
+             (snakemake-guix packages))
 
 (let* ((source-dir (dirname (dirname (current-filename))))
        (repo (repository-open source-dir))
