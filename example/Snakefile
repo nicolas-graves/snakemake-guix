@@ -1,0 +1,25 @@
+# Minimal example: capture GNU hello output two ways.
+# Run with: snakemake --sdm guix --cores 1
+
+rule all:
+    input:
+        "results/from_packages.txt",
+        "results/from_manifest.txt",
+
+
+rule greet_packages:
+    """Specify the environment inline as a package list."""
+    output: "results/from_packages.txt"
+    software:
+        guix(packages=["hello"])
+    shell:
+        "hello > {output}"
+
+
+rule greet_manifest:
+    """Specify the environment via a manifest file."""
+    output: "results/from_manifest.txt"
+    software:
+        guix(manifest_file="manifest.scm")
+    shell:
+        "hello > {output}"
