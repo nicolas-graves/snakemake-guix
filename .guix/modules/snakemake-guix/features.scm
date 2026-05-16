@@ -2,7 +2,7 @@
 
 (define-module (snakemake-guix features)
   ;; #:autoload (rde predicates) (ensure-pred)
-  #:autoload (rde features) (%make-feature-procedure)
+  #:autoload (rde features) (get-value %make-feature-procedure)
   #:use-module (gnu services)
   #:use-module (gnu home services)
   #:use-module (gnu packages emacs-xyz)
