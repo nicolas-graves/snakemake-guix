@@ -1,10 +1,10 @@
 # Guix Snakemake Software Deployment Plugin
 
-This plugin provides [Guix](https://guix.gnu.org/) support for Snakemake workflows, allowing you to use Guix for software deployment. Guix offers fully reproducible environments through functional package management. This combination is the best of both worlds: Guix is best-in-class for reproducibility and transparency; Snakemake is best-in-class for convenience and usability.
+This plugin provides [Guix](https://guix.gnu.org/) support for Snakemake workflows, allowing you to use Guix for fully reproducible environments during software deployment.  This combination tries to bring the best of both worlds: Guix is best-in-class for reproducibility and transparency; Snakemake is best-in-class for convenience and usability.
 
-Software deployment plugins have not formally landed in Snakemake, but I plan to continue and update this repository along development progress in the `feat/software-deployment-plugins` branch.  All commits and patches are recorded in `.guix/modules/snakemake-guix.scm`.
+Minimal Guix knowledge is expected, but not much more than what you can find in [this video](https://10years.guix.gnu.org/video/guix-as-a-tool-for-computational-science/)
 
-Minimal guix knowledge is expected, but not much more than what you can find in this video https://10years.guix.gnu.org/video/guix-as-a-tool-for-computational-science/
+Software deployment plugins have not formally landed in Snakemake, but I plan to continue and update this repository along development progress in the [feat/software-deployment-plugins](https://github.com/snakemake/snakemake/tree/feat/software-deployment-plugins) branch.  All commits and patches are recorded in [.guix/modules/snakemake-guix/packages.scm](./.guix/modules/snakemake-guix/packages.scm).
 
 This plugin currently only exists on Guix, which is assumed to be installed on your system. Once you have this channel pulled, install the `python-snakemake-software-deployment-plugin-guix` just like you would install any guix package.
 
@@ -26,43 +26,27 @@ Enable the Guix deployment method when running Snakemake:
 snakemake --sdm guix
 ```
 
-### Specifying Environments in Rules
+### Specifying Environments with Packages
 
 In your `Snakefile`, use the `software:` directive with the `guix()` factory:
 
-```python
+```make
 rule all:
     input:
-        "results/plot.png"
+        "results/from_packages.txt",
 
-rule analyze:
-    input:
-        "data/samples.csv"
-    output:
-        "results/analysis.txt"
-    software:
-        guix(manifest_file="envs/analysis.scm")
-    shell:
-        "python scripts/analyze.py {input} {output}"
 
-rule plot:
-    input:
-        "results/analysis.txt"
-    output:
-        "results/plot.png"
+rule greet_packages:
+    """Specify the environment inline as a package list."""
+    output: "results/from_packages.txt"
     software:
-        guix(packages=["python", "python-matplotlib"])
+        guix(packages=["hello"])
     shell:
-        "python scripts/plot.py {input} {output}"
+        "hello > {output}"
+
 ```
 
-Run with:
-
-```bash
-snakemake --sdm guix
-```
-
-### Using a Guix Manifest File
+### Specifying Environments Using a Guix Manifest File
 
 Create a `manifest.scm` file:
 
@@ -73,26 +57,20 @@ Create a `manifest.scm` file:
         "python-pandas"))
 ```
 
-Reference it in your rule:
+In your `Snakefile`, use the `software:` directive with the `guix()` factory:
 
-```python
-rule my_rule:
+```make
+rule all:
+    input:
+        "results/from_manifest.txt",
+
+rule greet_manifest:
+    """Specify the environment via a manifest file."""
+    output: "results/from_manifest.txt"
     software:
         guix(manifest_file="manifest.scm")
     shell:
-        "python my_script.py"
-```
-
-### Specifying Packages Directly
-
-For simple cases, list packages inline:
-
-```python
-rule my_rule:
-    software:
-        guix(packages=["python", "r", "samtools"])
-    shell:
-        "..."
+        "hello > {output}"
 ```
 
 ### Running in Containers
