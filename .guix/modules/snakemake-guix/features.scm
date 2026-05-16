@@ -6,6 +6,7 @@
   #:use-module (gnu services)
   #:use-module (gnu home services)
   #:use-module (gnu packages emacs-xyz)
+  #:use-module (guix diagnostics)
   #:use-module (guix gexp)
   #:use-module (snakemake-guix packages)
   #:export (feature-snakemake))
@@ -40,4 +41,5 @@
    f-name
    `((,f-name . ,snakemake))
    get-home-services
-   (const '())))
+   (const '())
+   (location "./snakemake-guix/features.scm" 13 0)))
