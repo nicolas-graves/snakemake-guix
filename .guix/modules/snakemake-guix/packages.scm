@@ -437,8 +437,9 @@ files from HTTP(s) in Snakemake.")
      (list snakemake-with-software-deployment
            python-snakemake-interface-software-deployment-plugins))
     (home-page "https://github.com/nicolas-graves/snakemake-guix")
-    (synopsis "In development")
-    (description "In development")
+    (synopsis "Run Snakemake within a Guix shell or time-machine")
+    (description "This package provides a software deployment plugin for Snakemake
+using Guix command-line calls.")
     (license license:gpl3+)))
 
 python-snakemake-software-deployment-plugin-guix
