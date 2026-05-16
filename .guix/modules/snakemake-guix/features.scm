@@ -2,7 +2,7 @@
 
 (define-module (snakemake-guix features)
   ;; #:autoload (rde predicates) (ensure-pred)
-  #:autoload (rde features) (make-feature)
+  #:autoload (rde features) (%make-feature-procedure)
   #:use-module (gnu services)
   #:use-module (gnu home services)
   #:use-module (gnu packages emacs-xyz)
@@ -37,7 +37,7 @@
                     (list)))))))
 
   ;; XXX: See the previous commit for the canonical syntax.
-  (make-feature
+  ((@@ (rde features) %make-feature-procedure)
    f-name
    `((,f-name . ,snakemake))
    get-home-services
