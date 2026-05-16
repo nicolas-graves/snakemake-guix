@@ -1,7 +1,7 @@
 ;; Copyright © 2026 Nicolas Graves <ngraves@ngraves.fr>
 
 (define-module (snakemake-guix features)
-  #:autoload (rde predicates) (ensure-pred)
+  ;; #:autoload (rde predicates) (ensure-pred)
   #:autoload (rde features) (feature)
   #:use-module (gnu services)
   #:use-module (gnu home services)
@@ -16,9 +16,11 @@
           (emacs-snakemake-mode emacs-snakemake-mode)
           (snakemake-plugins (list python-snakemake-storage-plugin-http)))
   "Configure and set up tooling for Snakemake."
-  (ensure-pred file-like? snakemake)
-  (ensure-pred file-like? emacs-snakemake-mode)
-  (ensure-pred list-of-file-like? snakemake)
+  ;; XXX: Hiding those which are macros and not procedures, hence not
+  ;; #:autoload friendly.
+  ;; (ensure-pred file-like? snakemake)
+  ;; (ensure-pred file-like? emacs-snakemake-mode)
+  ;; (ensure-pred list-of-file-like? snakemake)
 
   (define f-name 'snakemake)
 
