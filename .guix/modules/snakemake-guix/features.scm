@@ -35,7 +35,9 @@
                     (list emacs-snakemake-mode)
                     (list)))))))
 
-  (feature
-   (name f-name)
-   (values `((,f-name . ,snakemake)))
-   (home-services-getter get-home-services)))
+  ;; XXX: See the previous commit for the canonical syntax.
+  (make-feature
+   f-name
+   `((,f-name . ,snakemake))
+   get-home-services
+   (const '())))
