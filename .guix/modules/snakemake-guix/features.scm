@@ -32,7 +32,7 @@
       (simple-service 'add-snakemake-home-packages home-profile-service-type
         (append (list snakemake)
                 snakemake-plugins
-                (if (get-value 'emacs config #f)
+                (if ((@ (rde features) get-value) 'emacs config #f)
                     (list emacs-snakemake-mode)
                     (list)))))))
 
