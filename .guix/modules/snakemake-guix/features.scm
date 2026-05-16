@@ -37,7 +37,7 @@
                     (list)))))))
 
   ;; XXX: See the previous commit for the canonical syntax.
-  ((@@ (rde features) make-feature)
+  (make-feature
    f-name
    `((,f-name . ,snakemake))
    get-home-services
