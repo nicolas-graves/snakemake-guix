@@ -3,6 +3,7 @@
 (define-module (snakemake-guix features)
   ;; #:autoload (rde predicates) (ensure-pred)
   #:autoload (rde features) (get-value %make-feature-procedure)
+  #:autoload (rde serializers yaml) (yaml-serialize)
   #:use-module (gnu services)
   #:use-module (gnu home services)
   #:use-module (gnu packages emacs-xyz)
@@ -27,14 +28,21 @@
 
   (define (get-home-services config)
     "Return home services related to Snakemake."
-    (append
-     (list
-      (simple-service 'add-snakemake-home-packages home-profile-service-type
-        (append (list snakemake)
-                snakemake-plugins
-                (if ((@ (rde features) get-value) 'emacs config #f)
-                    (list emacs-snakemake-mode)
-                    (list)))))))
+    (list
+     (simple-service 'add-snakemake-home-packages home-profile-service-type
+       (append (list snakemake)
+               snakemake-plugins
+               (if ((@ (rde features) get-value) 'emacs config #f)
+                   (list emacs-snakemake-mode)
+                   (list))))
+     (simple-service 'add-snakemake-env home-environment-variables-service-type
+       '(("SNAKEMAKE_PROFILE" . "default")))
+     (simple-service 'add-snakemake-config
+         home-xdg-configuration-files-service-type
+       `(("snakemake/default/profile.yaml"
+          ,(mixed-text-file "snakemake-default-profile.yaml"
+                            ((@ (rde serializers yaml) yaml-serialize)
+                             `((software-deployment-method . #(guix))))))))))
 
   ;; XXX: See the previous commit for the canonical syntax.
   ((@@ (rde features) %make-feature-procedure)
