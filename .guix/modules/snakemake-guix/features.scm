@@ -39,8 +39,8 @@
        '(("SNAKEMAKE_PROFILE" . "default")))
      (simple-service 'add-snakemake-config
          home-xdg-configuration-files-service-type
-       `(("snakemake/default/profile.yaml"
-          ,(mixed-text-file "snakemake-default-profile.yaml"
+       `(("snakemake/default/config.yaml"
+          ,(mixed-text-file "snakemake-default-config.yaml"
                             ((@ (rde serializers yaml) yaml-serialize)
                              `((software-deployment-method . #(guix))))))))))
 
