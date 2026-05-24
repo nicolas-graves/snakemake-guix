@@ -42,7 +42,8 @@
        `(("snakemake/default/config.yaml"
           ,(mixed-text-file "snakemake-default-config.yaml"
                             ((@ (rde serializers yaml) yaml-serialize)
-                             `((software-deployment-method . #(guix))))))))))
+                             `((cores . #(all))
+                               (software-deployment-method . #(guix))))))))))
 
   ;; XXX: See the previous commit for the canonical syntax.
   ((@@ (rde features) %make-feature-procedure)
