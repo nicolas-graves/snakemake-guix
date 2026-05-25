@@ -42,7 +42,7 @@
        `(("snakemake/default/config.yaml"
           ,(mixed-text-file "snakemake-default-config.yaml"
                             ((@ (rde serializers yaml) yaml-serialize)
-                             `((cores . #(all))
+                             `((cores . all)
                                (software-deployment-method . #(guix))))))))))
 
   ;; XXX: See the previous commit for the canonical syntax.
