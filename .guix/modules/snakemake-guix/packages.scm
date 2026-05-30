@@ -177,7 +177,10 @@ batch or interactive systems without root privileges.")
         (base32 "138z6i810v374h27gj9jxg5jwdz6ccyirgv2f2l313j1iivj7wfa"))))
     (build-system pyproject-build-system)
     (propagated-inputs (list python-snakemake-interface-common))
-    (native-inputs (list python-hatchling))
+    (native-inputs
+     (list python-hatchling
+           python-snakemake-logger-plugin-rich
+           python-pytest))
     (home-page (string-append "https://github.com/snakemake/"
                               "python-snakemake-interface-logger-plugins"))
     (synopsis "Interface for Snakemake logger plugins")
@@ -282,6 +285,39 @@ its scheduler plugins.")
      (list python-hatchling
            python-pytest
            python-snakemake-software-deployment-plugin-envmodules-bootstrap))))
+
+(define-public python-snakemake-logger-plugin-rich
+  (package
+    (name "python-snakemake-logger-plugin-rich")
+    (version "0.4.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/cademirch/snakemake-logger-plugin-rich")
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0sjjj9z1dhilhpc8pq4154czrb79z9cm044jvn75kxcjv6v5l2m5"))))
+    (build-system pyproject-build-system)
+    (propagated-inputs
+     (list python-pydantic
+           python-rich
+           python-snakemake-interface-executor-plugins
+           (package/inherit python-snakemake-interface-logger-plugins
+             (name "python-snakemake-interface-logger-plugins-bootstrap")
+             (arguments (list #:tests? #f))
+             (native-inputs (list python-hatchling)))))
+    (native-inputs
+     (list python-hatchling
+           python-pytest
+           guix:snakemake))
+    (home-page "https://github.com/cademirch/snakemake-logger-plugin-rich")
+    (synopsis "Log plugin for snakemake using Rich")
+    (description "This package provides a logging plugin for Snakemake
+that utilizes @code{python-rich} for enhanced terminal styling and
+progress bars.")
+    (license license:expat)))
 
 (define-public python-snakemake-software-deployment-plugin-container
   (package
