@@ -3,7 +3,6 @@
 (define-module (snakemake-guix packages)
   #:use-module (guix build-system emacs)
   #:use-module (guix build-system pyproject)
-  #:use-module (guix build-system python)
   #:use-module (guix diagnostics)
   #:use-module (guix download)
   #:use-module (guix gexp)
@@ -176,6 +175,9 @@ batch or interactive systems without root privileges.")
        (sha256
         (base32 "138z6i810v374h27gj9jxg5jwdz6ccyirgv2f2l313j1iivj7wfa"))))
     (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags #~(list "tests/tests.py")))
     (propagated-inputs (list python-snakemake-interface-common))
     (native-inputs
      (list python-hatchling
@@ -220,8 +222,16 @@ its logger plugins.")
        (sha256
         (base32 "0bz33dl90cblzs9gki8kmklv9zkdh22883455541y5b5k70hr306"))))
     (build-system pyproject-build-system)
+    (arguments
+     (list
+      ;; XXX: Tests collect but snakemake.scheduler is missing.
+      #:tests? #f
+      #:test-flags #~(list "tests/tests.py")))
     (propagated-inputs (list python-snakemake-interface-common))
-    (native-inputs (list python-hatchling))
+    (native-inputs
+     (list python-hatchling
+           python-pytest
+           guix:snakemake))
     (home-page (string-append "https://github.com/snakemake/"
                               "python-snakemake-interface-scheduler-plugins"))
     (synopsis "Interface for Snakemake scheduler plugins")
@@ -298,8 +308,12 @@ its scheduler plugins.")
               (commit (string-append "v" version))))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "0sjjj9z1dhilhpc8pq4154czrb79z9cm044jvn75kxcjv6v5l2m5"))))
+        (base32 "07r2gqhxqs5ijqh4yjrdcwj60aqr66iglm6jvdwkgr9x0dmg7j4h"))))
     (build-system pyproject-build-system)
+    (arguments
+     (list
+      ;; XXX: --logger argument is not recognized.
+      #:tests? #f))
     (propagated-inputs
      (list python-pydantic
            python-rich
@@ -334,11 +348,15 @@ progress bars.")
        (sha256
         (base32 "1g44v4ri0a4a9nn02jf1pbic7vya0m8zf5652gyc6hfxczkjv3rq"))))
     (build-system pyproject-build-system)
+    (arguments
+     (list
+      ;; Tests require network access.
+      #:tests? #f))
     (propagated-inputs
      (list python-snakemake-interface-common
            python-snakemake-interface-software-deployment-plugins
            python-udocker))
-    (native-inputs (list python-hatchling))
+    (native-inputs (list python-hatchling python-pytest))
     (home-page (string-append "https://github.com/snakemake/"
                               "snakemake-software-deployment-plugin-container"))
     (synopsis "Run Snakemake within a rootless container")
@@ -361,10 +379,14 @@ implementing snakemake's software-deployment interface.")
        (sha256
         (base32 "1764502r8vqg3k61wjc81rfi5v89rxj0njhpcfynxxx82rnda0vv"))))
     (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-backend #~'custom
+      #:test-flags #~(list "tests/test_plugin.py")))
     (propagated-inputs
      (list python-snakemake-interface-common
            python-snakemake-interface-software-deployment-plugins))
-    (native-inputs (list python-hatchling))
+    (native-inputs (list python-hatchling python-pytest))
     (home-page (string-append "https://github.com/snakemake/"
                               "snakemake-software-deployment-plugin-envmodules"))
     (synopsis "Environment modules plugin for Snakemake")
@@ -378,6 +400,7 @@ using environment modules.")
     (arguments
      (substitute-keyword-arguments
          (package-arguments python-snakemake-software-deployment-plugin-envmodules)
+       ((#:tests? tests #t) #f)
        ((#:phases phases #~%standard-phases)
         #~(modify-phases #$phases
             (delete 'sanity-check)))))
