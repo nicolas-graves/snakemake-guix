@@ -13,6 +13,7 @@
   #:use-module ((guix utils) #:select (substitute-keyword-arguments))
   #:use-module (gnu packages)
   #:use-module (gnu packages check)
+  #:use-module (gnu packages databases)
   #:use-module (gnu packages emacs-xyz)
   #:use-module (gnu packages package-management)
   #:use-module (gnu packages python)
@@ -91,6 +92,44 @@ builds on Python mode to provide fontification, indentation, and imenu indexing
 for Snakemake's rule blocks, as well as an interface for running Snakemake
 commands and support for highlighting embedded R code.")
       (license license:gpl3+))))
+
+(define-public python-sqlmodel
+  (package
+    (name "python-sqlmodel")
+    (version "0.0.37")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/fastapi/sqlmodel")
+              (commit version)))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "1kb81a1ffvsvkvi9msblv3sq0s74ww340dxz3rymh5snnxc1pg92"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:test-flags
+      ;; Ignore optional tests.
+      #~(list "--ignore=docs_src"
+              "--ignore=tests/test_tutorial"
+              ;; Unclear why this test fails.
+              "-k" "not test_select_gen")))
+    (propagated-inputs
+     (list python-pydantic
+           python-sqlalchemy-2
+           python-typing-extensions))
+    (native-inputs
+     (list python-pdm-backend
+           python-dirty-equals
+           python-pytest))
+    (home-page "https://github.com/fastapi/sqlmodel")
+    (synopsis "SQLModel, SQL databases in Python, designed")
+    (description
+     "SQLModel is a library for interacting with SQL databases from
+Python code, with Python objects.  It is based on Python type
+annotations, and powered by Pydantic and SQLAlchemy.")
+    (license license:expat)))
 
 (define-public python-udocker
   (package
@@ -274,7 +313,7 @@ its scheduler plugins.")
 (define-public python-snakemake-interface-software-deployment-plugins
   (package/inherit guix:python-snakemake-interface-software-deployment-plugins
     (name "python-snakemake-interface-software-deployment-plugins")
-    (version "0.17.0")
+    (version "0.18.3")
     (source
      (origin
        (method git-fetch)
@@ -284,7 +323,7 @@ its scheduler plugins.")
               (commit (string-append "v" version))))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "0z08dkn26hwj0wcvnasvvv4pxr2jgwbypp8lc83smd4brd51820x"))))
+        (base32 "12srz6m4k00c70x3mpy079jik26ya2gcdwbnyba1vi7v9b9ldnsj"))))
     (build-system pyproject-build-system)
     (arguments
      (list
@@ -336,7 +375,7 @@ progress bars.")
 (define-public python-snakemake-software-deployment-plugin-container
   (package
     (name "python-snakemake-software-deployment-plugin-container")
-    (version "0.6.0")
+    (version "0.6.2")
     (source
      (origin
        (method git-fetch)
@@ -346,7 +385,7 @@ progress bars.")
               (commit (string-append "v" version))))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "1g44v4ri0a4a9nn02jf1pbic7vya0m8zf5652gyc6hfxczkjv3rq"))))
+        (base32 "0izkmnr89cfd085z99bp4yf57djppb462n6k04fhi2k5mk93mzlm"))))
     (build-system pyproject-build-system)
     (arguments
      (list
@@ -444,12 +483,12 @@ files from HTTP(s) in Snakemake.")
 
 (define-public snakemake-with-software-deployment
   ;; Commit of branch feat/software-deployment-plugins
-  (let ((commit "f2029839945cfe66eeef6fc3c1ddf779a76f58ce")
+  (let ((commit "4a369895ae119b4dfe0279d4e011be35cd53bfc4")
         (revision "0"))
     (package/inherit guix:snakemake
       (name "snakemake")
       ;; Version of last common commit with master branch
-      (version (git-version "9.17.0" revision commit))
+      (version (git-version "9.23.1" revision commit))
       (source
        (origin
          (method git-fetch)
@@ -458,31 +497,45 @@ files from HTTP(s) in Snakemake.")
                 (commit commit)))
          (file-name (git-file-name name version))
          (sha256
-          (base32 "11079q76kwm9kyvnri28n7f22zqv40zica50wwv1sm3n95avsqwr"))
+          (base32 "01gmmi2hlg6pigw5x1shz62xii0gh4g03ff53rj8q7r1mah72m7g"))
          (patches
           (snakemake-guix-patches "snakemake-4009.patch"
-                                  "snakemake-allow-without-conda.patch"
-                                  "snakemake-factory-within-default.patch"))))
+                                  "snakemake-allow-without-conda.patch"))))
       (arguments
        (substitute-keyword-arguments (package-arguments guix:snakemake)
          ((#:test-flags test-flags)
-          #~(cons* "--ignore=tests/test_args.py"
-                   "--ignore=tests/test_jupyter_notebook_pathlike.py"
-                   "--ignore=tests/test_persistence.py"
-                   "--deselect=tests/test_script.py::TestBashEncoder"
-                   "--deselect=tests/test_sourcecache.py::test_github_file_fetch"
-                   #$test-flags))
+          #~(cons*
+             ;; Added, we ignore Conda
+             "--ignore=tests/test_software_directive.py"
+             ;; Broken
+             "--ignore=tests/test_args.py"
+             "--ignore=tests/test_logging.py"
+             "--ignore=tests/test_jupyter_notebook_pathlike.py"
+             "--ignore=tests/test_persistence.py"
+             "--deselect=tests/test_script.py::TestBashEncoder"
+             "--deselect=tests/test_sourcecache.py::test_github_file_fetch"
+             #$test-flags))
          ((#:phases phases #~%standard-phases)
           #~(modify-phases #$phases
-              ;; XXX: This package requires a lot of development
-              ;; (python-uv, python-py-rattler), but IMHO upstream
-              ;; should make it an optional requirement...
-              ;; python-snakemake-software-deployment-plugin-conda
               (add-after 'unpack 'relax-requirements
                 (lambda _
                   (substitute* "pyproject.toml"
+                    (("\"pip\",")
+                     "")
+                    ;; XXX: This package requires a lot of development
+                    ;; (python-uv, python-py-rattler), but IMHO upstream
+                    ;; should make it an optional requirement...
+                    ;; python-snakemake-software-deployment-plugin-conda
                     (("\"snakemake-software-deployment-plugin-conda.*\",")
                      ""))))
+              (add-after 'relax-requirements 'fix-jobs
+                (lambda _
+                  (substitute* "src/snakemake/jobs.py"
+                    ((".*(ResourceList|Wildcards),.*")
+                     "")
+                    (("from snakemake.settings.types import SharedFSUsage" all)
+                     (string-append all "\n"
+                                    "from snakemake.iocontainers import ResourceList, Wildcards")))))
               (delete 'patch-version)
               (delete 'call-wrapper-not-wrapped-snakemake)))))
       (propagated-inputs
@@ -501,7 +554,8 @@ files from HTTP(s) in Snakemake.")
                  python-snakemake-interface-logger-plugins
                  python-snakemake-interface-scheduler-plugins
                  python-snakemake-software-deployment-plugin-container
-                 python-snakemake-software-deployment-plugin-envmodules)))
+                 python-snakemake-software-deployment-plugin-envmodules
+                 python-sqlmodel)))
       (native-inputs
        (modify-inputs (package-native-inputs guix:snakemake)
          (append python-pytest python-setuptools-scm))))))

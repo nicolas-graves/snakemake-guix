@@ -1,4 +1,4 @@
-From 9b59cf8761942085c6249723353924672eb1fc7e Mon Sep 17 00:00:00 2001
+From b6b9f25e92734d70b8ba29227460da72baef5074 Mon Sep 17 00:00:00 2001
 From: Nicolas Graves <ngraves@ngraves.fr>
 Subject: [PATCH] Allow using Snakemake without the Conda plugin
 
@@ -11,7 +11,7 @@ Subject: [PATCH] Allow using Snakemake without the Conda plugin
  5 files changed, 23 insertions(+), 7 deletions(-)
 
 diff --git a/src/snakemake/cwl.py b/src/snakemake/cwl.py
-index 668ad88a..0d4c7c51 100644
+index 0c97343d..43422701 100644
 --- a/src/snakemake/cwl.py
 +++ b/src/snakemake/cwl.py
 @@ -18,7 +18,10 @@ from snakemake_interface_executor_plugins.settings import ExecMode
@@ -32,13 +32,13 @@ index 668ad88a..0d4c7c51 100644
          job.software_env_spec is not None
 +        and CondaEnvSpec is not None
          and isinstance(job.software_env_spec, CondaEnvSpec)
-         and job.job.software_env_spec.envfile is not None
+         and job.software_env_spec.envfile is not None
      ):
 diff --git a/src/snakemake/deployment/__init__.py b/src/snakemake/deployment/__init__.py
-index 876eb371..67004c67 100644
+index 5e5fba1d..64fc8ed0 100644
 --- a/src/snakemake/deployment/__init__.py
 +++ b/src/snakemake/deployment/__init__.py
-@@ -26,7 +26,10 @@ from snakemake_interface_software_deployment_plugins import (
+@@ -27,7 +27,10 @@ from snakemake_interface_software_deployment_plugins import (
      ShellExecutable,
  )
  from snakemake.common import get_function_params, overwrite_function_params
@@ -51,22 +51,22 @@ index 876eb371..67004c67 100644
  from snakemake_software_deployment_plugin_envmodules import EnvSpec as EnvModuleEnvSpec
  
 diff --git a/src/snakemake/deployment/containerize.py b/src/snakemake/deployment/containerize.py
-index e4e96a20..08f057e6 100644
+index ec58047f..3630e30d 100644
 --- a/src/snakemake/deployment/containerize.py
 +++ b/src/snakemake/deployment/containerize.py
-@@ -6,7 +6,10 @@ from abc import ABC, abstractmethod
+@@ -7,7 +7,10 @@ from abc import ABC, abstractmethod
+ 
  from snakemake.exceptions import WorkflowError
  from snakemake.logging import logger
- from snakemake.sourcecache import LocalSourceFile
 -from snakemake_software_deployment_plugin_conda import EnvSpec as CondaEnvSpec
 +try:
 +    from snakemake_software_deployment_plugin_conda import EnvSpec as CondaEnvSpec
 +except ImportError:
 +    CondaEnvSpec = None
  
- 
  # TODO convert to rattler or pixi?
-@@ -179,7 +182,7 @@ def containerize(workflow, dag, fmt="dockerfile"):
+ 
+@@ -185,7 +188,7 @@ def containerize(workflow, dag, fmt="dockerfile"):
  
      # collect envs from jobs from the initial DAG.
      def is_conda_job(job):
@@ -76,7 +76,7 @@ index e4e96a20..08f057e6 100644
          )
  
 diff --git a/src/snakemake/jobs.py b/src/snakemake/jobs.py
-index f04d9345..adace690 100644
+index 631c5bfa..0f7da6d9 100644
 --- a/src/snakemake/jobs.py
 +++ b/src/snakemake/jobs.py
 @@ -74,7 +74,10 @@ from snakemake_interface_software_deployment_plugins import EnvBase as SoftwareE
@@ -91,7 +91,7 @@ index f04d9345..adace690 100644
  
  
  def format_files(io, as_input: bool = False, as_output: bool = False):
-@@ -524,7 +527,7 @@ class Job(
+@@ -530,7 +533,7 @@ class Job(
              env = self.dag.workflow.software_deployment_manager.get_env(
                  self.software_env_spec
              )
@@ -101,13 +101,13 @@ index f04d9345..adace690 100644
              return env
          return None
 diff --git a/src/snakemake/wrapper.py b/src/snakemake/wrapper.py
-index 2d48b64b..026785e3 100644
+index 44a66402..5b2a3767 100644
 --- a/src/snakemake/wrapper.py
 +++ b/src/snakemake/wrapper.py
-@@ -14,7 +14,10 @@ from typing import Optional
- from snakemake.exceptions import WorkflowError
- from snakemake.script import script
+@@ -10,7 +10,10 @@ from snakemake.script import script
  from snakemake.sourcecache import GithubFile, SourceCache, infer_source_file
+ from snakemake.executors.local import RunArgs
+ from snakemake.sourcecache import SourceFile
 -from snakemake_software_deployment_plugin_conda import EnvSpec as CondaEnvSpec
 +try:
 +    from snakemake_software_deployment_plugin_conda import EnvSpec as CondaEnvSpec
