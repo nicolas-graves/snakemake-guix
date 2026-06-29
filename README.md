@@ -11,7 +11,7 @@ This plugin currently only exists on Guix, which is assumed to be installed on y
 ## Features
 
 - Use Guix environments for software deployment in Snakemake workflows
-- Specify environments via manifest files or package lists per rule
+- Specify environments via one or more manifest files or package lists per rule
 - Support for isolated execution with Guix containers (`--container`) out of the box
 - `guix time-machine`-like reproducibility via with pinned channels
 - Compatible with Snakemake 9.17+ plugin system (`--sdm guix`)
@@ -46,7 +46,7 @@ rule greet_packages:
 
 ```
 
-### Specifying Environments Using a Guix Manifest File
+### Specifying Environments Using Guix Manifest Files
 
 Create a `manifest.scm` file:
 
@@ -65,13 +65,25 @@ rule all:
         "results/from_manifest.txt",
 
 rule greet_manifest:
-    """Specify the environment via a manifest file."""
+    """Specify the environment via a manifest file list."""
     output: "results/from_manifest.txt"
     software:
-        guix(manifest_file="manifest.scm")
+        guix(manifest_files=["manifest.scm"])
     shell:
         "hello > {output}"
 ```
+
+To combine multiple manifest files, pass them all in `manifest_files`:
+
+```python
+software:
+    guix(
+        manifest_files=["manifest-base.scm", "manifest-extra.scm"],
+        packages=["hello"],
+    )
+```
+
+`manifest_file=` is still accepted for compatibility, but it is deprecated.
 
 ### Running in Containers
 
@@ -113,7 +125,7 @@ Guix environments can be composed with other plugins using the `within` keyword.
 ```python
 rule my_rule:
     software:
-        guix(manifest_file="manifest.scm", within=container("docker://ubuntu:22.04"))
+        guix(manifest_files=["manifest.scm"], within=container("docker://ubuntu:22.04"))
     shell:
         "..."
 ```
@@ -143,13 +155,14 @@ snakemake --sdm guix --cores 1
 
 This runs two rules:
 - `greet_packages` — environment declared inline with `packages=["hello"]`
-- `greet_manifest` — environment declared via `manifest.scm`
+- `greet_manifest` — environment declared via `manifest_files=["manifest.scm"]`
 
 Both produce a file under `results/` containing the greeting. If both succeed, the plugin is wired up correctly end-to-end.
 
 ## Limitations
 
 - When using `packages=` directly, package existence is not validated until the job runs.
+- When using `manifest_file=`, the new `manifest_files=` argument is preferred.
 - Without a channels file and `time-machine`, environment reproducibility depends on your local Guix installation.
 
 ## Contributing

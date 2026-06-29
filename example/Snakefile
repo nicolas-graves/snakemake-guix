@@ -20,6 +20,6 @@ rule greet_manifest:
     """Specify the environment via a manifest file."""
     output: "results/from_manifest.txt"
     software:
-        guix(manifest_file="manifest.scm")
+        guix(manifest_files=["manifest.scm"])
     shell:
         "hello > {output}"
