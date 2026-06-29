@@ -15,6 +15,12 @@ def _scheme_string(s: str) -> str:
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def _software_name(item) -> str:
+    if isinstance(item, dict):
+        return str(item["name"])
+    return str(getattr(item, "name", item))
+
+
 class Env(EnvBase):
     spec: EnvSpec
 
@@ -126,4 +132,4 @@ class Env(EnvBase):
         for manifest_file in self._manifest_sources():
             yield SoftwareReport(name=str(manifest_file.path_or_uri))
         for pkg in self.spec.packages:
-            yield SoftwareReport(name=pkg)
+            yield SoftwareReport(name=_software_name(pkg))

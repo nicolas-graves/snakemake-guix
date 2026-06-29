@@ -131,6 +131,32 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
         assert str(self.extra_manifest_path) in content
         assert '(specifications->manifest (list "bash-minimal"))' in content
 
+    def test_report_software_exposes_names_only(self) -> None:
+        spec = EnvSpec(
+            manifest_files=[EnvSpecSourceFile(self.manifest_path)],
+            packages=[
+                "python-wrapper",
+                {"name": "python-pandas", "version": "2.2.0", "is_secondary": False},
+            ],
+        )
+        env = Env(
+            spec=spec,
+            within=None,
+            settings=None,
+            shell_executable=ShellExecutable(executable="/bin/sh", command_arg="-c"),
+            mountpoints=[],
+            tempdir=self.temp_dir,
+            cache_prefix=self.temp_dir,
+            deployment_prefix=self.temp_dir,
+            pinfile_prefix=self.temp_dir,
+        )
+
+        assert [rec.name for rec in env.report_software()] == [
+            str(self.manifest_path),
+            "python-wrapper",
+            "python-pandas",
+        ]
+
     def test_manifest_file_deprecated_alias_still_works(self) -> None:
         with pytest.warns(FutureWarning):
             spec = EnvSpec(manifest_file=EnvSpecSourceFile(self.manifest_path))
