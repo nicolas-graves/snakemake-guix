@@ -1,4 +1,4 @@
-From b6b9f25e92734d70b8ba29227460da72baef5074 Mon Sep 17 00:00:00 2001
+From 574b8d673dbeffa5fad53c95f8cf14bc78266ca6 Mon Sep 17 00:00:00 2001
 From: Nicolas Graves <ngraves@ngraves.fr>
 Subject: [PATCH] Allow using Snakemake without the Conda plugin
 
@@ -7,8 +7,8 @@ Subject: [PATCH] Allow using Snakemake without the Conda plugin
  src/snakemake/deployment/__init__.py     | 5 ++++-
  src/snakemake/deployment/containerize.py | 7 +++++--
  src/snakemake/jobs.py                    | 7 +++++--
- src/snakemake/wrapper.py                 | 5 ++++-
- 5 files changed, 23 insertions(+), 7 deletions(-)
+ src/snakemake/wrapper.py                 | 9 +++++++--
+ 5 files changed, 26 insertions(+), 8 deletions(-)
 
 diff --git a/src/snakemake/cwl.py b/src/snakemake/cwl.py
 index 0c97343d..43422701 100644
@@ -101,7 +101,7 @@ index 631c5bfa..0f7da6d9 100644
              return env
          return None
 diff --git a/src/snakemake/wrapper.py b/src/snakemake/wrapper.py
-index 44a66402..5b2a3767 100644
+index 44a66402..a6fd05ec 100644
 --- a/src/snakemake/wrapper.py
 +++ b/src/snakemake/wrapper.py
 @@ -10,7 +10,10 @@ from snakemake.script import script
@@ -116,3 +116,14 @@ index 44a66402..5b2a3767 100644
  from snakemake_interface_software_deployment_plugins import EnvSpecSourceFile
  
  EXTENSIONS = [".py", ".R", ".Rmd", ".jl"]
+@@ -92,7 +95,9 @@ def get_script(
+     return find_extension(path, sourcecache)
+ 
+ 
+-def get_conda_env(path, sourcecache: SourceCache, prefix=None) -> CondaEnvSpec:
++def get_conda_env(path, sourcecache: SourceCache, prefix=None):
++    if CondaEnvSpec is None:
++        return None
+     path = get_path(path, prefix=prefix)
+     if is_script(path):
+         # URLs and posixpaths share the same separator. Hence use posixpath here.
