@@ -509,7 +509,6 @@ files from HTTP(s) in Snakemake.")
              "--ignore=tests/test_software_directive.py"
              ;; Broken
              "--ignore=tests/test_args.py"
-             "--ignore=tests/test_logging.py"
              "--ignore=tests/test_jupyter_notebook_pathlike.py"
              "--ignore=tests/test_persistence.py"
              "--deselect=tests/test_script.py::TestBashEncoder"
@@ -528,14 +527,17 @@ files from HTTP(s) in Snakemake.")
                     ;; python-snakemake-software-deployment-plugin-conda
                     (("\"snakemake-software-deployment-plugin-conda.*\",")
                      ""))))
-              (add-after 'relax-requirements 'fix-jobs
+              (add-after 'relax-requirements 'fixes
                 (lambda _
                   (substitute* "src/snakemake/jobs.py"
                     ((".*(ResourceList|Wildcards),.*")
                      "")
                     (("from snakemake.settings.types import SharedFSUsage" all)
                      (string-append all "\n"
-                                    "from snakemake.iocontainers import ResourceList, Wildcards")))))
+                                    "from snakemake.iocontainers import ResourceList, Wildcards")))
+                  (substitute* "src/snakemake/workflow.py"
+                    (("json\\.dumps\\(config,")
+                     "json.dumps(self.globals[\"config\"],"))))
               (delete 'patch-version)
               (delete 'call-wrapper-not-wrapped-snakemake)))))
       (propagated-inputs
