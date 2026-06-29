@@ -16,7 +16,8 @@
           #:key
           (snakemake snakemake-with-software-deployment)
           (emacs-snakemake-mode emacs-snakemake-mode)
-          (snakemake-plugins (list python-snakemake-storage-plugin-http)))
+          (snakemake-plugins
+           (list python-snakemake-software-deployment-plugin-guix)))
   "Configure and set up tooling for Snakemake."
   ;; XXX: Hiding those which are macros and not procedures, hence not
   ;; #:autoload friendly.
