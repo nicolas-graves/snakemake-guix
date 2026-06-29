@@ -1,0 +1,42 @@
+From 7d3499427d69f377e7d96cc3ddaa452a42c09ade Mon Sep 17 00:00:00 2001
+From: Nicolas Graves <ngraves@ngraves.fr>
+Date: Mon, 29 Jun 2026 10:01:54 +0200
+Subject: [PATCH] Record software in a strutured way
+
+An earlier version of the branch wrote SoftwareReport attributes as JSON dicts
+{"name": ..., "version": ..., "is_secondary": ...} into the software metadata field. A later
+commit changed MetadataRecord.software to list[str], so Pydantic's model_validate now rejects
+those dicts on read — crashing during DAG init before any job runs.
+---
+ src/snakemake/persistence/__init__.py | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/snakemake/persistence/__init__.py b/src/snakemake/persistence/__init__.py
+index 8f3cc6a7..1dd04972 100644
+--- a/src/snakemake/persistence/__init__.py
++++ b/src/snakemake/persistence/__init__.py
+@@ -40,7 +40,7 @@ class MetadataRecord(SQLModel):
+     code: str | None = None
+     record_format_version: int = 0
+     software_stack_hash: str | None = None
+-    software: list[str] | None = Field(default=None, sa_column=Column(JSON))
++    software: list[Any] | None = Field(default=None, sa_column=Column(JSON))
+     job_hash: int | None = None
+     starttime: float | None = None
+     endtime: float | None = None
+@@ -430,7 +430,11 @@ class PersistenceBase(
+                 record.input_checksums = checksums
+                 record.software = (
+                     [
+-                        f"{software.name} {software.version}"
++                        {
++                            "name": software.name,
++                            "version": software.version,
++                            "is_secondary": software.is_secondary,
++                        }
+                         for software in job.software_env.report_software()
+                         if not software.is_secondary
+                     ]
+-- 
+2.54.0
+

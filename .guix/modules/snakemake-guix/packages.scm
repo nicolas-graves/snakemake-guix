@@ -500,7 +500,8 @@ files from HTTP(s) in Snakemake.")
           (base32 "01gmmi2hlg6pigw5x1shz62xii0gh4g03ff53rj8q7r1mah72m7g"))
          (patches
           (snakemake-guix-patches "snakemake-4009.patch"
-                                  "snakemake-allow-without-conda.patch"))))
+                                  "snakemake-allow-without-conda.patch"
+                                  "snakemake-record-software-structured.patch"))))
       (arguments
        (substitute-keyword-arguments (package-arguments guix:snakemake)
          ((#:test-flags test-flags)
