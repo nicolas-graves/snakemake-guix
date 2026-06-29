@@ -565,7 +565,7 @@ files from HTTP(s) in Snakemake.")
 (define-public python-snakemake-software-deployment-plugin-guix
   (package
     (name "python-snakemake-software-deployment-plugin-guix")
-    (version "0.2.0")
+    (version "0.3.0")
     (source
      (origin
        (method git-fetch)
@@ -574,7 +574,7 @@ files from HTTP(s) in Snakemake.")
               (commit version)))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "0jszc45rfhxp99zwlh7w6pwnnlv5kbnnlqj477gl07s2x5yjjkb1"))))
+        (base32 "1nccwqmmjh1p3fay31kkp6m8y8512x8r9z5jrrcm209nvs14vvn0"))))
     (build-system pyproject-build-system)
     (arguments
      ;; XXX: We would need access to builds with the guile daemon to be able
