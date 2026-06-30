@@ -1,14 +1,14 @@
-From 574b8d673dbeffa5fad53c95f8cf14bc78266ca6 Mon Sep 17 00:00:00 2001
+From def60a17a80b71b2cd7859308f19cef6eefc854b Mon Sep 17 00:00:00 2001
 From: Nicolas Graves <ngraves@ngraves.fr>
 Subject: [PATCH] Allow using Snakemake without the Conda plugin
 
 ---
  src/snakemake/cwl.py                     | 6 +++++-
  src/snakemake/deployment/__init__.py     | 5 ++++-
- src/snakemake/deployment/containerize.py | 7 +++++--
+ src/snakemake/deployment/containerize.py | 5 ++++-
  src/snakemake/jobs.py                    | 7 +++++--
  src/snakemake/wrapper.py                 | 9 +++++++--
- 5 files changed, 26 insertions(+), 8 deletions(-)
+ 5 files changed, 25 insertions(+), 7 deletions(-)
 
 diff --git a/src/snakemake/cwl.py b/src/snakemake/cwl.py
 index 0c97343d..43422701 100644
@@ -35,10 +35,10 @@ index 0c97343d..43422701 100644
          and job.software_env_spec.envfile is not None
      ):
 diff --git a/src/snakemake/deployment/__init__.py b/src/snakemake/deployment/__init__.py
-index 5e5fba1d..64fc8ed0 100644
+index d0970c1a..e3c8eb9d 100644
 --- a/src/snakemake/deployment/__init__.py
 +++ b/src/snakemake/deployment/__init__.py
-@@ -27,7 +27,10 @@ from snakemake_interface_software_deployment_plugins import (
+@@ -28,7 +28,10 @@ from snakemake_interface_software_deployment_plugins import (
      ShellExecutable,
  )
  from snakemake.common import get_function_params, overwrite_function_params
@@ -51,10 +51,10 @@ index 5e5fba1d..64fc8ed0 100644
  from snakemake_software_deployment_plugin_envmodules import EnvSpec as EnvModuleEnvSpec
  
 diff --git a/src/snakemake/deployment/containerize.py b/src/snakemake/deployment/containerize.py
-index ec58047f..3630e30d 100644
+index 1d7cf21f..c8f20da9 100644
 --- a/src/snakemake/deployment/containerize.py
 +++ b/src/snakemake/deployment/containerize.py
-@@ -7,7 +7,10 @@ from abc import ABC, abstractmethod
+@@ -8,7 +8,10 @@ from abc import ABC, abstractmethod
  
  from snakemake.exceptions import WorkflowError
  from snakemake.logging import logger
@@ -66,20 +66,11 @@ index ec58047f..3630e30d 100644
  
  # TODO convert to rattler or pixi?
  
-@@ -185,7 +188,7 @@ def containerize(workflow, dag, fmt="dockerfile"):
- 
-     # collect envs from jobs from the initial DAG.
-     def is_conda_job(job):
--        return job.software_env_spec is not None and isinstance(
-+        return CondaEnvSpec is not None and job.software_env_spec is not None and isinstance(
-             job.software_env_spec, CondaEnvSpec
-         )
- 
 diff --git a/src/snakemake/jobs.py b/src/snakemake/jobs.py
-index 631c5bfa..0f7da6d9 100644
+index 0959fd41..43571a50 100644
 --- a/src/snakemake/jobs.py
 +++ b/src/snakemake/jobs.py
-@@ -74,7 +74,10 @@ from snakemake_interface_software_deployment_plugins import EnvBase as SoftwareE
+@@ -73,7 +73,10 @@ from snakemake_interface_software_deployment_plugins import EnvBase as SoftwareE
  from snakemake_interface_software_deployment_plugins import (
      EnvSpecBase as SoftwareEnvSpecBase,
  )
@@ -91,7 +82,7 @@ index 631c5bfa..0f7da6d9 100644
  
  
  def format_files(io, as_input: bool = False, as_output: bool = False):
-@@ -530,7 +533,7 @@ class Job(
+@@ -529,7 +532,7 @@ class Job(
              env = self.dag.workflow.software_deployment_manager.get_env(
                  self.software_env_spec
              )

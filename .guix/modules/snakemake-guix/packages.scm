@@ -483,8 +483,8 @@ files from HTTP(s) in Snakemake.")
 
 (define-public snakemake-with-software-deployment
   ;; Commit of branch feat/software-deployment-plugins
-  (let ((commit "4a369895ae119b4dfe0279d4e011be35cd53bfc4")
-        (revision "0"))
+  (let ((commit "2c3fe99e07562fe2c64019c30fff4b2225deb30e")
+        (revision "1"))
     (package/inherit guix:snakemake
       (name "snakemake")
       ;; Version of last common commit with master branch
@@ -497,7 +497,7 @@ files from HTTP(s) in Snakemake.")
                 (commit commit)))
          (file-name (git-file-name name version))
          (sha256
-          (base32 "01gmmi2hlg6pigw5x1shz62xii0gh4g03ff53rj8q7r1mah72m7g"))
+          (base32 "0bag10jr4p9v8fijyz1kv2caz89s23piycvf87dvi8d572w5r20z"))
          (patches
           (snakemake-guix-patches "snakemake-4009.patch"
                                   "snakemake-allow-without-conda.patch"
@@ -509,7 +509,6 @@ files from HTTP(s) in Snakemake.")
              ;; Added, we ignore Conda
              "--ignore=tests/test_software_directive.py"
              ;; Broken
-             "--ignore=tests/test_args.py"
              "--ignore=tests/test_jupyter_notebook_pathlike.py"
              "--ignore=tests/test_persistence.py"
              "--deselect=tests/test_script.py::TestBashEncoder"
@@ -528,17 +527,6 @@ files from HTTP(s) in Snakemake.")
                     ;; python-snakemake-software-deployment-plugin-conda
                     (("\"snakemake-software-deployment-plugin-conda.*\",")
                      ""))))
-              (add-after 'relax-requirements 'fixes
-                (lambda _
-                  (substitute* "src/snakemake/jobs.py"
-                    ((".*(ResourceList|Wildcards),.*")
-                     "")
-                    (("from snakemake.settings.types import SharedFSUsage" all)
-                     (string-append all "\n"
-                                    "from snakemake.iocontainers import ResourceList, Wildcards")))
-                  (substitute* "src/snakemake/workflow.py"
-                    (("json\\.dumps\\(config,")
-                     "json.dumps(self.globals[\"config\"],"))))
               (delete 'patch-version)
               (delete 'call-wrapper-not-wrapped-snakemake)))))
       (propagated-inputs
