@@ -483,8 +483,8 @@ files from HTTP(s) in Snakemake.")
 
 (define-public snakemake-with-software-deployment
   ;; Commit of branch feat/software-deployment-plugins
-  (let ((commit "2c3fe99e07562fe2c64019c30fff4b2225deb30e")
-        (revision "1"))
+  (let ((commit "428792a539e99dced5f2bebb46276dcd30dc7842")
+        (revision "2"))
     (package/inherit guix:snakemake
       (name "snakemake")
       ;; Version of last common commit with master branch
@@ -497,10 +497,9 @@ files from HTTP(s) in Snakemake.")
                 (commit commit)))
          (file-name (git-file-name name version))
          (sha256
-          (base32 "0bag10jr4p9v8fijyz1kv2caz89s23piycvf87dvi8d572w5r20z"))
+          (base32 "10ah007db2ab7dsdd5qqxncwnzhd8hwvxws3id1h3gd7flxp0lih"))
          (patches
           (snakemake-guix-patches "snakemake-4009.patch"
-                                  "snakemake-allow-without-conda.patch"
                                   "snakemake-record-software-structured.patch"))))
       (arguments
        (substitute-keyword-arguments (package-arguments guix:snakemake)
