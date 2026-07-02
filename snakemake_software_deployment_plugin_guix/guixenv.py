@@ -42,7 +42,7 @@ class Env(EnvBase):
         )
 
     def _aggregate_manifest_content(self) -> str:
-        parts = ['(use-modules (guix profiles) (gnu))']
+        parts = ["(use-modules (guix profiles) (gnu))"]
         entries = []
         for manifest_file in self._manifest_sources():
             manifest_path = self._manifest_source_path(manifest_file)
@@ -61,20 +61,34 @@ class Env(EnvBase):
         parts.append(f"(concatenate-manifests (list\n  {entries_str}))")
         return "\n".join(parts) + "\n"
 
+    def _uses_generated_manifest(self) -> bool:
+        manifest_sources = self._manifest_sources()
+        return not (len(manifest_sources) == 1 and not self.spec.packages)
+
+    def _write_temp_manifest(self) -> str:
+        fd, path = tempfile.mkstemp(suffix=".scm", prefix="guix-manifest-")
+        with os.fdopen(fd, "w") as f:
+            f.write(self._aggregate_manifest_content())
+        return path
+
     def _manifest_path(self) -> str:
         manifest_sources = self._manifest_sources()
-        if len(manifest_sources) == 1 and not self.spec.packages:
+        if not self._uses_generated_manifest():
             return self._manifest_source_path(manifest_sources[0])
 
-        if self._temp_manifest_file is None:
-            fd, path = tempfile.mkstemp(suffix=".scm", prefix="guix-manifest-")
-            with os.fdopen(fd, "w") as f:
-                f.write(self._aggregate_manifest_content())
-            self._temp_manifest_file = path
+        if self._temp_manifest_file is None or not os.path.exists(
+            self._temp_manifest_file
+        ):
+            self._temp_manifest_file = self._write_temp_manifest()
         return self._temp_manifest_file
 
     def decorate_shellcmd(self, cmd: str) -> str:
-        manifest = self._manifest_path()
+        uses_generated_manifest = self._uses_generated_manifest()
+        manifest = (
+            self._write_temp_manifest()
+            if uses_generated_manifest
+            else self._manifest_path()
+        )
         settings: Optional[Settings] = self.settings
 
         use_time_machine = settings is not None and not settings.no_time_machine
@@ -96,7 +110,13 @@ class Env(EnvBase):
         if extra_args:
             prefix += " " + " ".join(shlex.quote(a) for a in extra_args)
 
-        return f"{prefix} -m {shlex.quote(manifest)} -- bash -c {shlex.quote(cmd)}"
+        decorated = f"{prefix} -m {shlex.quote(manifest)} -- bash -c {shlex.quote(cmd)}"
+        if not uses_generated_manifest:
+            return decorated
+
+        manifest_arg = shlex.quote(manifest)
+        cleanup = f"status=$?; rm -f {manifest_arg}; exit $status"
+        return f"trap {shlex.quote(cleanup)} EXIT; {decorated}"
 
     def contains_executable(self, executable: str) -> bool:
         cmd = self.decorate_shellcmd(f"which {shlex.quote(executable)}")

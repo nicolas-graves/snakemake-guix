@@ -24,7 +24,6 @@ from snakemake_software_deployment_plugin_guix.common import (
     is_guix_available,
 )
 
-
 pytestmark = pytest.mark.skipif(
     not is_guix_available(),
     reason="Guix is not available on this system",
@@ -130,6 +129,73 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
         assert str(self.manifest_path) in content
         assert str(self.extra_manifest_path) in content
         assert '(specifications->manifest (list "bash-minimal"))' in content
+
+    def test_decorated_command_cleans_generated_manifest(self) -> None:
+        spec = EnvSpec(packages=["hello"])
+        env = Env(
+            spec=spec,
+            within=None,
+            settings=None,
+            shell_executable=ShellExecutable(executable="/bin/sh", command_arg="-c"),
+            mountpoints=[],
+            tempdir=self.temp_dir,
+            cache_prefix=self.temp_dir,
+            deployment_prefix=self.temp_dir,
+            pinfile_prefix=self.temp_dir,
+        )
+
+        command = env.decorate_shellcmd("hello")
+        manifest_path = Path(command.split(" -m ", 1)[1].split(" -- ", 1)[0])
+
+        assert manifest_path.exists()
+        assert command.startswith("trap ")
+        assert f"rm -f {manifest_path}" in command
+
+    def test_decorated_commands_use_separate_generated_manifests(self) -> None:
+        spec = EnvSpec(packages=["hello"])
+        env = Env(
+            spec=spec,
+            within=None,
+            settings=None,
+            shell_executable=ShellExecutable(executable="/bin/sh", command_arg="-c"),
+            mountpoints=[],
+            tempdir=self.temp_dir,
+            cache_prefix=self.temp_dir,
+            deployment_prefix=self.temp_dir,
+            pinfile_prefix=self.temp_dir,
+        )
+
+        first_command = env.decorate_shellcmd("hello")
+        second_command = env.decorate_shellcmd("hello")
+        first_manifest_path = Path(
+            first_command.split(" -m ", 1)[1].split(" -- ", 1)[0]
+        )
+        second_manifest_path = Path(
+            second_command.split(" -m ", 1)[1].split(" -- ", 1)[0]
+        )
+
+        assert first_manifest_path != second_manifest_path
+        assert first_manifest_path.exists()
+        assert second_manifest_path.exists()
+
+    def test_decorated_command_keeps_user_manifest(self) -> None:
+        spec = EnvSpec(manifest_files=[EnvSpecSourceFile(self.manifest_path)])
+        env = Env(
+            spec=spec,
+            within=None,
+            settings=None,
+            shell_executable=ShellExecutable(executable="/bin/sh", command_arg="-c"),
+            mountpoints=[],
+            tempdir=self.temp_dir,
+            cache_prefix=self.temp_dir,
+            deployment_prefix=self.temp_dir,
+            pinfile_prefix=self.temp_dir,
+        )
+
+        command = env.decorate_shellcmd("hello")
+
+        assert command == f"guix shell -m {self.manifest_path} -- bash -c hello"
+        assert "rm -f" not in command
 
     def test_report_software_exposes_names_only(self) -> None:
         spec = EnvSpec(
