@@ -1,0 +1,40 @@
+From 2fd8f0fe24fc3714699a0988fec006d8e2d67d28 Mon Sep 17 00:00:00 2001
+From: Nicolas Graves <ngraves@ngraves.fr>
+Subject: [PATCH] Allow using Snakemake without the Conda plugin
+
+---
+ src/snakemake/wrapper.py | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/snakemake/wrapper.py b/src/snakemake/wrapper.py
+index 2c7bf84c..a0aef315 100644
+--- a/src/snakemake/wrapper.py
++++ b/src/snakemake/wrapper.py
+@@ -1,5 +1,3 @@
+-from typing import TYPE_CHECKING
+-
+ __author__ = "Johannes Köster"
+ __copyright__ = "Copyright 2022, Johannes Köster"
+ __email__ = "johannes.koester@uni-due.de"
+@@ -14,8 +12,10 @@ from snakemake.executors.local import RunArgs
+ from snakemake.sourcecache import SourceFile
+ from snakemake_interface_software_deployment_plugins import EnvSpecSourceFile
+ 
+-if TYPE_CHECKING:
++try:
+     from snakemake_software_deployment_plugin_conda import EnvSpec as CondaEnvSpec
++except ImportError:
++    CondaEnvSpec = None
+ 
+ EXTENSIONS = [".py", ".R", ".Rmd", ".jl"]
+ 
+@@ -97,7 +97,8 @@ def get_script(
+ 
+ 
+ def get_conda_env(path, sourcecache: SourceCache, prefix=None) -> "CondaEnvSpec":
+-    from snakemake_software_deployment_plugin_conda import EnvSpec as CondaEnvSpec
++    if CondaEnvSpec is None:
++        return None
+ 
+     path = get_path(path, prefix=prefix)
+     if is_script(path):
