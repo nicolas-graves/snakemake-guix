@@ -483,8 +483,8 @@ files from HTTP(s) in Snakemake.")
 
 (define-public snakemake-with-software-deployment
   ;; Commit of branch feat/software-deployment-plugins
-  (let ((commit "428792a539e99dced5f2bebb46276dcd30dc7842")
-        (revision "2"))
+  (let ((commit "6f0740f29baa83cb5f5fbb09952c2651f1b033c1")
+        (revision "3"))
     (package/inherit guix:snakemake
       (name "snakemake")
       ;; Version of last common commit with master branch
@@ -497,11 +497,9 @@ files from HTTP(s) in Snakemake.")
                 (commit commit)))
          (file-name (git-file-name name version))
          (sha256
-          (base32 "10ah007db2ab7dsdd5qqxncwnzhd8hwvxws3id1h3gd7flxp0lih"))
+          (base32 "0nb5vhsf2h5hgvnh3fmhb4aq5cby0j0rliw85a1cjlc9fyqzxamj"))
          (patches
-          (snakemake-guix-patches "snakemake-4009.patch"
-                                  "snakemake-allow-without-conda.patch"
-                                  "snakemake-record-software-structured.patch"))))
+          (snakemake-guix-patches "snakemake-4009.patch"))))
       (arguments
        (substitute-keyword-arguments (package-arguments guix:snakemake)
          ((#:test-flags test-flags)
@@ -520,12 +518,6 @@ files from HTTP(s) in Snakemake.")
                 (lambda _
                   (substitute* "pyproject.toml"
                     (("\"pip\",")
-                     "")
-                    ;; XXX: This package requires a lot of development
-                    ;; (python-uv, python-py-rattler), but IMHO upstream
-                    ;; should make it an optional requirement...
-                    ;; python-snakemake-software-deployment-plugin-conda
-                    (("\"snakemake-software-deployment-plugin-conda.*\",")
                      ""))))
               (delete 'patch-version)
               (delete 'call-wrapper-not-wrapped-snakemake)))))
