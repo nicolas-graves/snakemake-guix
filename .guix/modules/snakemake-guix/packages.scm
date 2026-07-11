@@ -499,7 +499,9 @@ files from HTTP(s) in Snakemake.")
          (sha256
           (base32 "0nb5vhsf2h5hgvnh3fmhb4aq5cby0j0rliw85a1cjlc9fyqzxamj"))
          (patches
-          (snakemake-guix-patches "snakemake-4009.patch"))))
+          (snakemake-guix-patches "snakemake-4009.patch"
+                                  "snakemake-allow-without-conda.patch"
+                                  "snakemake-record-software-structured.patch"))))
       (arguments
        (substitute-keyword-arguments (package-arguments guix:snakemake)
          ((#:test-flags test-flags)
