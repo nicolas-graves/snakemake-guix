@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 from typing import Iterable, Optional
 
+from snakemake_interface_common.exceptions import WorkflowError
 from snakemake_interface_software_deployment_plugins import EnvBase, SoftwareReport
 
 from snakemake_software_deployment_plugin_guix.guixenvspec import EnvSpec
@@ -31,10 +32,73 @@ class Env(EnvBase):
         return self.spec.manifest_files
 
     def _manifest_source_path(self, manifest_file) -> str:
-        cached = manifest_file.cached
+        return self._source_path(manifest_file)
+
+    @staticmethod
+    def _source_path(source_file) -> str:
+        cached = source_file.cached
         if cached is not None:
             return str(cached)
-        return str(manifest_file.path_or_uri)
+        return str(source_file.path_or_uri)
+
+    def _effective_channels_file(self) -> Optional[str]:
+        settings: Optional[Settings] = self.settings
+        if settings is not None and settings.channels_file is not None:
+            return str(settings.channels_file)
+        if self.spec.channels_file is not None:
+            return self._source_path(self.spec.channels_file)
+        return None
+
+    def _effective_url(self) -> Optional[str]:
+        settings: Optional[Settings] = self.settings
+        if settings is not None and settings.url is not None:
+            return settings.url
+        return self.spec.url
+
+    def _effective_commit(self) -> Optional[str]:
+        settings: Optional[Settings] = self.settings
+        if settings is not None and settings.commit is not None:
+            return settings.commit
+        return self.spec.commit
+
+    def _effective_branch(self) -> Optional[str]:
+        settings: Optional[Settings] = self.settings
+        if settings is not None and settings.branch is not None:
+            return settings.branch
+        return self.spec.branch
+
+    def _time_machine_pin(self):
+        """Resolve the active time-machine pin: ("channels_file", path),
+        ("refs", (url, commit, branch)), or None. Raises WorkflowError if
+        channels_file and url/commit/branch are both effective, mirroring
+        guix time-machine's own rejection of combining -C with
+        --url/--commit/--branch.
+        """
+        channels_file = self._effective_channels_file()
+        url = self._effective_url()
+        commit = self._effective_commit()
+        branch = self._effective_branch()
+        refs = (url, commit, branch) if (url or commit or branch) else None
+
+        if channels_file is not None and refs is not None:
+            raise WorkflowError(
+                "guix software deployment: channels_file and url/commit/branch "
+                "are mutually exclusive guix time-machine pinning mechanisms "
+                f"(effective channels_file={channels_file!r}, "
+                f"effective url/commit/branch={refs!r}). "
+                "Set only one mechanism for this rule."
+            )
+        if channels_file is not None:
+            return ("channels_file", channels_file)
+        if refs is not None:
+            return ("refs", refs)
+        return None
+
+    def _use_time_machine(self) -> bool:
+        settings: Optional[Settings] = self.settings
+        if settings is not None and settings.no_time_machine:
+            return False
+        return self._time_machine_pin() is not None
 
     def _needs_aggregate_manifest(self) -> bool:
         return len(self._manifest_sources()) > 1 or (
@@ -91,16 +155,26 @@ class Env(EnvBase):
         )
         settings: Optional[Settings] = self.settings
 
-        use_time_machine = settings is not None and not settings.no_time_machine
-        channels_file = settings.channels_file if settings is not None else None
         use_container = settings is not None and settings.container
         extra_args = settings.additional_args if settings is not None else None
 
-        if use_time_machine and channels_file is not None:
-            prefix = (
-                f"guix time-machine -C {shlex.quote(str(channels_file))} "
-                "-- guix shell"
-            )
+        if self._use_time_machine():
+            pin_kind, pin_value = self._time_machine_pin()
+            if pin_kind == "channels_file":
+                prefix = (
+                    f"guix time-machine -C {shlex.quote(pin_value)} "
+                    "-- guix shell"
+                )
+            else:
+                url, commit, branch = pin_value
+                flags = []
+                if url is not None:
+                    flags.append(f"--url={shlex.quote(url)}")
+                if commit is not None:
+                    flags.append(f"--commit={shlex.quote(commit)}")
+                if branch is not None:
+                    flags.append(f"--branch={shlex.quote(branch)}")
+                prefix = "guix time-machine " + " ".join(flags) + " -- guix shell"
         else:
             prefix = "guix shell"
 
@@ -144,9 +218,19 @@ class Env(EnvBase):
         if settings is not None:
             hash_object.update(str(settings.container).encode())
             hash_object.update(str(settings.no_time_machine).encode())
-            if settings.channels_file is not None:
-                with open(settings.channels_file, "rb") as f:
+
+        if self._use_time_machine():
+            pin_kind, pin_value = self._time_machine_pin()
+            if pin_kind == "channels_file":
+                with open(pin_value, "rb") as f:
+                    hash_object.update(b"channels:")
                     hash_object.update(f.read())
+                    hash_object.update(b"\0")
+            else:
+                url, commit, branch = pin_value
+                hash_object.update(b"url:" + (url or "").encode() + b"\0")
+                hash_object.update(b"commit:" + (commit or "").encode() + b"\0")
+                hash_object.update(b"branch:" + (branch or "").encode() + b"\0")
 
     def report_software(self) -> Iterable[SoftwareReport]:
         for manifest_file in self._manifest_sources():

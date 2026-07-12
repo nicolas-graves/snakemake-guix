@@ -13,11 +13,17 @@ class EnvSpec(EnvSpecBase):
     manifest_files: Tuple[EnvSpecSourceFile, ...] = field(default_factory=tuple)
     manifest_file: Optional[EnvSpecSourceFile] = None
     packages: Tuple[str, ...] = field(default_factory=tuple)
+    channels_file: Optional[EnvSpecSourceFile] = None
+    url: Optional[str] = None
+    commit: Optional[str] = None
+    branch: Optional[str] = None
 
     def __post_init__(self):
         self.manifest_files = self._coerce_manifest_files(self.manifest_files)
         if isinstance(self.manifest_file, (str, Path)):
             self.manifest_file = EnvSpecSourceFile(self.manifest_file)
+        if isinstance(self.channels_file, (str, Path)):
+            self.channels_file = EnvSpecSourceFile(self.channels_file)
         if self.manifest_file is not None:
             warnings.warn(
                 "manifest_file= is deprecated; use manifest_files=[...] instead.",
@@ -70,6 +76,8 @@ class EnvSpec(EnvSpecBase):
         copied.manifest_file = (
             copied.manifest_files[0] if copied.manifest_files else None
         )
+        if copied.channels_file is not None:
+            copied.channels_file = modify_func(copied.channels_file)
         copied._obj_hash = None
         if copied.within is not None:
             copied.within = copied.within.modify_identity_attributes(modify_func)
@@ -83,6 +91,8 @@ class EnvSpec(EnvSpecBase):
         copied.manifest_file = (
             copied.manifest_files[0] if copied.manifest_files else None
         )
+        if copied.channels_file is not None:
+            copied.channels_file = modify_func(copied.channels_file)
         copied._obj_hash = None
         if copied.within is not None:
             copied.within = copied.within.modify_source_paths(modify_func)
@@ -99,6 +109,10 @@ class EnvSpec(EnvSpecBase):
     def identity_attributes(cls) -> Iterable[str]:
         yield "manifest_files"
         yield "packages"
+        yield "channels_file"
+        yield "url"
+        yield "commit"
+        yield "branch"
 
     @classmethod
     def source_path_attributes(cls) -> Iterable[str]:
@@ -106,6 +120,7 @@ class EnvSpec(EnvSpecBase):
         # the base class has_source_paths() checks `getattr(self, attr) is not None`.
         # Per-element rewriting is handled by the modify_source_paths override.
         yield "manifest_file"
+        yield "channels_file"
 
     def __str__(self) -> str:
         if self.manifest_files:
@@ -113,8 +128,22 @@ class EnvSpec(EnvSpecBase):
                 str(file.path_or_uri) for file in self.manifest_files
             )
             if self.packages:
-                return f"manifests=[{manifests}], packages=[{', '.join(self.packages)}]"
-            return manifests
-        if self.packages:
-            return " ".join(self.packages)
-        return "guix"
+                base = f"manifests=[{manifests}], packages=[{', '.join(self.packages)}]"
+            else:
+                base = manifests
+        elif self.packages:
+            base = " ".join(self.packages)
+        else:
+            base = "guix"
+        if self.channels_file is not None:
+            base += f" (channels={self.channels_file.path_or_uri})"
+        elif self.url is not None or self.commit is not None or self.branch is not None:
+            parts = []
+            if self.url is not None:
+                parts.append(f"url={self.url}")
+            if self.commit is not None:
+                parts.append(f"commit={self.commit}")
+            if self.branch is not None:
+                parts.append(f"branch={self.branch}")
+            base += f" (time-machine: {', '.join(parts)})"
+        return base

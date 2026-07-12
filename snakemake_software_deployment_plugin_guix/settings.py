@@ -26,6 +26,27 @@ class Settings(SoftwareDeploymentSettingsBase):
         default=None,
         metadata={"help": "Path to a Guix channels file for use with time-machine."},
     )
+    url: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Git repository URL to use with guix time-machine "
+            "(overrides any per-rule url=)."
+        },
+    )
+    commit: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Commit to use with guix time-machine "
+            "(overrides any per-rule commit=)."
+        },
+    )
+    branch: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Branch tip to use with guix time-machine "
+            "(overrides any per-rule branch=)."
+        },
+    )
     additional_args: Optional[List[str]] = field(
         default=None,
         metadata={"help": "Additional arguments forwarded to guix shell."},

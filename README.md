@@ -13,7 +13,7 @@ This plugin currently only exists on Guix, which is assumed to be installed on y
 - Use Guix environments for software deployment in Snakemake workflows
 - Specify environments via one or more manifest files or package lists per rule
 - Support for isolated execution with Guix containers (`--container`) out of the box
-- `guix time-machine`-like reproducibility via with pinned channels
+- `guix time-machine`-like reproducibility via pinned channels, or a lightweight `--url`/`--commit`/`--branch` pin
 - Compatible with Snakemake 9.17+ plugin system (`--sdm guix`)
 
 ## Usage
@@ -107,13 +107,23 @@ To disable time machine and use the current Guix version:
 snakemake --sdm guix --sdm-guix-time-machine false
 ```
 
+Alternatively, pin a single channel by commit or branch without maintaining a
+channels file:
+
+```bash
+snakemake --sdm guix --sdm-guix-commit <commit>
+```
+
 ## Configuration
 
 Plugin-specific settings are passed via `--sdm-guix-<option>`:
 
 | CLI option | Description | Default |
 |---|---|---|
-| `--sdm-guix-channels-file` | Path to a Guix channels file for `time-machine` | None |
+| `--sdm-guix-channels-file` | Path to a Guix channels file for `time-machine`; overrides any per-rule `channels_file=` | None |
+| `--sdm-guix-url` | Git repository URL for `time-machine`; overrides any per-rule `url=` | None |
+| `--sdm-guix-commit` | Commit to use with `time-machine`; overrides any per-rule `commit=` | None |
+| `--sdm-guix-branch` | Branch tip to use with `time-machine`; overrides any per-rule `branch=` | None |
 | `--sdm-guix-container` | Run `guix shell` with `--container` for isolation | False |
 | `--sdm-guix-time-machine` | Use `guix time-machine` for reproducibility | True |
 | `--sdm-guix-additional-args` | Extra arguments forwarded to `guix shell` | None |
@@ -132,17 +142,65 @@ rule my_rule:
 
 ## Channels File
 
-A channels file pins the exact Guix revision used for all environments, enabling bit-for-bit reproducibility. Generate one from your current Guix installation:
+A channels file pins the exact Guix revision used for an environment, enabling bit-for-bit reproducibility. Generate one from your current Guix installation:
 
 ```bash
 guix describe -f channels > channels.scm
 ```
 
-Then pass it to Snakemake:
+Then pass it to Snakemake to pin every rule to it:
 
 ```bash
 snakemake --sdm guix --sdm-guix-channels-file channels.scm
 ```
+
+It can also be set per-rule, directly in the `guix()` call:
+
+```python
+rule my_rule:
+    software:
+        guix(packages=["hello"], channels_file="channels.scm")
+    shell:
+        "..."
+```
+
+If `--sdm-guix-channels-file` is passed on the command line, it overrides any
+per-rule `channels_file=` for every rule — the CLI setting is meant as a global
+override for reproducing a whole workflow against one fixed revision. When the
+CLI flag is absent, each rule's own `channels_file=` (if any) is used.
+
+## Pinning by URL/Commit/Branch
+
+For a lighter-weight pin than a full channels file, `guix time-machine` also
+accepts `--url`, `--commit`, and `--branch` directly, which pin a single
+channel (by default, the `guix` channel itself) without a `channels.scm`.
+This can be set per-rule:
+
+```python
+rule my_rule:
+    software:
+        guix(packages=["hello"], commit="abc123...")
+    shell:
+        "..."
+```
+
+`url=`, `commit=`, and `branch=` can be combined, e.g. to pin a fork at a
+given branch:
+
+```python
+guix(packages=["hello"], url="https://example.org/guix.git", branch="devel")
+```
+
+Unlike `channels_file`, each of `--sdm-guix-url` / `--sdm-guix-commit` /
+`--sdm-guix-branch` independently overrides only its own per-rule
+counterpart — e.g. a global `--sdm-guix-branch` combines with a rule's own
+`commit=` unless that rule also sets its own `branch=`.
+
+`channels_file` and `url`/`commit`/`branch` are mutually exclusive pinning
+mechanisms — combining them (whether both are set on the same rule, or one is
+set globally via `--sdm-guix-*` while a rule sets the other) raises an error,
+matching `guix time-machine`'s own rejection of combining `-C` with
+`--url`/`--commit`/`--branch`.
 
 ## Examples
 
