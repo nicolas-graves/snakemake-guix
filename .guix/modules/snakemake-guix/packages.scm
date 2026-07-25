@@ -538,12 +538,13 @@ files from HTTP(s) in Snakemake.")
          (append python-snakemake-interface-software-deployment-plugins
                  python-snakemake-interface-logger-plugins
                  python-snakemake-interface-scheduler-plugins
-                 python-snakemake-software-deployment-plugin-container
-                 python-snakemake-software-deployment-plugin-envmodules
                  python-sqlmodel)))
       (native-inputs
        (modify-inputs (package-native-inputs guix:snakemake)
-         (append python-pytest python-setuptools-scm))))))
+         (append python-pytest
+                 python-setuptools-scm
+                 python-snakemake-software-deployment-plugin-container
+                 python-snakemake-software-deployment-plugin-envmodules))))))
 
 (define-public python-snakemake-software-deployment-plugin-guix
   (package
