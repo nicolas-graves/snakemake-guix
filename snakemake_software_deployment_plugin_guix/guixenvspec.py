@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Callable, Iterable, List, Optional, Tuple, Union
 
 from snakemake_interface_software_deployment_plugins import EnvSpecBase, EnvSpecSourceFile
+from snakemake_software_deployment_plugin_guix.channels import classify_channels_value
 from snakemake_software_deployment_plugin_guix.common import common_settings  # noqa: F401
 
 
@@ -13,7 +14,7 @@ class EnvSpec(EnvSpecBase):
     manifest_files: Tuple[EnvSpecSourceFile, ...] = field(default_factory=tuple)
     manifest_file: Optional[EnvSpecSourceFile] = None
     packages: Tuple[str, ...] = field(default_factory=tuple)
-    channels_file: Optional[EnvSpecSourceFile] = None
+    channels: Optional[Union[str, EnvSpecSourceFile]] = None
     url: Optional[str] = None
     commit: Optional[str] = None
     branch: Optional[str] = None
@@ -22,8 +23,13 @@ class EnvSpec(EnvSpecBase):
         self.manifest_files = self._coerce_manifest_files(self.manifest_files)
         if isinstance(self.manifest_file, (str, Path)):
             self.manifest_file = EnvSpecSourceFile(self.manifest_file)
-        if isinstance(self.channels_file, (str, Path)):
-            self.channels_file = EnvSpecSourceFile(self.channels_file)
+        if isinstance(self.channels, (str, Path)):
+            value = str(self.channels)
+            self.channels = (
+                value
+                if classify_channels_value(value) == "direct"
+                else EnvSpecSourceFile(self.channels)
+            )
         if self.manifest_file is not None:
             warnings.warn(
                 "manifest_file= is deprecated; use manifest_files=[...] instead.",
@@ -76,8 +82,8 @@ class EnvSpec(EnvSpecBase):
         copied.manifest_file = (
             copied.manifest_files[0] if copied.manifest_files else None
         )
-        if copied.channels_file is not None:
-            copied.channels_file = modify_func(copied.channels_file)
+        if isinstance(copied.channels, EnvSpecSourceFile):
+            copied.channels = modify_func(copied.channels)
         copied._obj_hash = None
         if copied.within is not None:
             copied.within = copied.within.modify_identity_attributes(modify_func)
@@ -91,8 +97,8 @@ class EnvSpec(EnvSpecBase):
         copied.manifest_file = (
             copied.manifest_files[0] if copied.manifest_files else None
         )
-        if copied.channels_file is not None:
-            copied.channels_file = modify_func(copied.channels_file)
+        if isinstance(copied.channels, EnvSpecSourceFile):
+            copied.channels = modify_func(copied.channels)
         copied._obj_hash = None
         if copied.within is not None:
             copied.within = copied.within.modify_source_paths(modify_func)
@@ -109,7 +115,7 @@ class EnvSpec(EnvSpecBase):
     def identity_attributes(cls) -> Iterable[str]:
         yield "manifest_files"
         yield "packages"
-        yield "channels_file"
+        yield "channels"
         yield "url"
         yield "commit"
         yield "branch"
@@ -119,8 +125,11 @@ class EnvSpec(EnvSpecBase):
         # Yield the nullable scalar alias rather than manifest_files (tuple) because
         # the base class has_source_paths() checks `getattr(self, attr) is not None`.
         # Per-element rewriting is handled by the modify_source_paths override.
+        # channels may hold a plain str (URI/SWHID) rather than an
+        # EnvSpecSourceFile; modify_source_paths() only forwards it to
+        # modify_func when it actually is one.
         yield "manifest_file"
-        yield "channels_file"
+        yield "channels"
 
     def __str__(self) -> str:
         if self.manifest_files:
@@ -135,8 +144,13 @@ class EnvSpec(EnvSpecBase):
             base = " ".join(self.packages)
         else:
             base = "guix"
-        if self.channels_file is not None:
-            base += f" (channels={self.channels_file.path_or_uri})"
+        if self.channels is not None:
+            channels_repr = (
+                self.channels.path_or_uri
+                if isinstance(self.channels, EnvSpecSourceFile)
+                else self.channels
+            )
+            base += f" (channels={channels_repr})"
         elif self.url is not None or self.commit is not None or self.branch is not None:
             parts = []
             if self.url is not None:

@@ -1,5 +1,5 @@
+import warnings
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import List, Optional
 
 from snakemake_interface_software_deployment_plugins.settings import (
@@ -22,9 +22,17 @@ class Settings(SoftwareDeploymentSettingsBase):
         default=False,
         metadata={"help": "Disable guix time-machine (skips reproducibility pin)."},
     )
-    channels_file: Optional[Path] = field(
+    channels: Optional[str] = field(
         default=None,
-        metadata={"help": "Path to a Guix channels file for use with time-machine."},
+        metadata={
+            "help": "Guix channels file-or-uri for use with time-machine "
+            "(local path, http(s) URL, or Software Heritage SWHID); "
+            "overrides any per-rule channels=."
+        },
+    )
+    channels_file: Optional[str] = field(
+        default=None,
+        metadata={"help": "Deprecated; use --sdm-guix-channels instead."},
     )
     url: Optional[str] = field(
         default=None,
@@ -51,3 +59,31 @@ class Settings(SoftwareDeploymentSettingsBase):
         default=None,
         metadata={"help": "Additional arguments forwarded to guix shell."},
     )
+    allow_untrusted_channels: bool = field(
+        default=False,
+        metadata={
+            "help": "Pass --allow-untrusted-channels to guix time-machine, "
+            "bypassing commit-signature verification. Security-relevant: only "
+            "enable if you trust the channel source."
+        },
+    )
+    unsafe_channel_evaluation: bool = field(
+        default=False,
+        metadata={
+            "help": "Pass --unsafe-channel-evaluation to guix time-machine, "
+            "allowing arbitrary code execution from channels files. "
+            "Security-relevant: only enable if you trust the channels file "
+            "content."
+        },
+    )
+
+    def __post_init__(self) -> None:
+        if self.channels_file is not None:
+            warnings.warn(
+                "--sdm-guix-channels-file is deprecated; use "
+                "--sdm-guix-channels instead.",
+                FutureWarning,
+                stacklevel=2,
+            )
+            if self.channels is None:
+                self.channels = self.channels_file

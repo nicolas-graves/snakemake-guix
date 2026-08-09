@@ -6,8 +6,14 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 from snakemake_interface_common.exceptions import WorkflowError
-from snakemake_interface_software_deployment_plugins import EnvBase, SoftwareReport
+from snakemake_interface_software_deployment_plugins import (
+    EnvBase,
+    EnvSpecSourceFile,
+    SoftwareReport,
+)
 
+from snakemake_software_deployment_plugin_guix.channels import classify_channels_value
+from snakemake_software_deployment_plugin_guix.common import time_machine_supports_flag
 from snakemake_software_deployment_plugin_guix.guixenvspec import EnvSpec
 from snakemake_software_deployment_plugin_guix.settings import Settings
 
@@ -41,13 +47,33 @@ class Env(EnvBase):
             return str(cached)
         return str(source_file.path_or_uri)
 
-    def _effective_channels_file(self) -> Optional[str]:
+    def _effective_channels(self) -> Optional[str]:
         settings: Optional[Settings] = self.settings
-        if settings is not None and settings.channels_file is not None:
-            return str(settings.channels_file)
-        if self.spec.channels_file is not None:
-            return self._source_path(self.spec.channels_file)
-        return None
+        if settings is not None and settings.channels is not None:
+            return self._resolve_channels_value(str(settings.channels))
+        if self.spec.channels is None:
+            return None
+        channels = self.spec.channels
+        if isinstance(channels, EnvSpecSourceFile):
+            path = self._source_path(channels)
+            if not os.path.isfile(path):
+                raise WorkflowError(
+                    f"guix software deployment: channels file {path!r} does not "
+                    f"exist (from channels={channels.path_or_uri!r})."
+                )
+            return path
+        return channels
+
+    @staticmethod
+    def _resolve_channels_value(value: str) -> str:
+        if classify_channels_value(value) == "direct":
+            return value
+        if not os.path.isfile(value):
+            raise WorkflowError(
+                f"guix software deployment: --sdm-guix-channels file {value!r} "
+                "does not exist."
+            )
+        return value
 
     def _effective_url(self) -> Optional[str]:
         settings: Optional[Settings] = self.settings
@@ -68,31 +94,45 @@ class Env(EnvBase):
         return self.spec.branch
 
     def _time_machine_pin(self):
-        """Resolve the active time-machine pin: ("channels_file", path),
+        """Resolve the active time-machine pin: ("channels", value),
         ("refs", (url, commit, branch)), or None. Raises WorkflowError if
-        channels_file and url/commit/branch are both effective, mirroring
+        channels and url/commit/branch are both effective, mirroring
         guix time-machine's own rejection of combining -C with
         --url/--commit/--branch.
         """
-        channels_file = self._effective_channels_file()
+        channels = self._effective_channels()
         url = self._effective_url()
         commit = self._effective_commit()
         branch = self._effective_branch()
         refs = (url, commit, branch) if (url or commit or branch) else None
 
-        if channels_file is not None and refs is not None:
+        if channels is not None and refs is not None:
             raise WorkflowError(
-                "guix software deployment: channels_file and url/commit/branch "
+                "guix software deployment: channels and url/commit/branch "
                 "are mutually exclusive guix time-machine pinning mechanisms "
-                f"(effective channels_file={channels_file!r}, "
+                f"(effective channels={channels!r}, "
                 f"effective url/commit/branch={refs!r}). "
                 "Set only one mechanism for this rule."
             )
-        if channels_file is not None:
-            return ("channels_file", channels_file)
+        if channels is not None:
+            return ("channels", channels)
         if refs is not None:
             return ("refs", refs)
         return None
+
+    @staticmethod
+    def _require_time_machine_flag(flag: str) -> None:
+        if time_machine_supports_flag(flag):
+            return
+        setting_name = {
+            "--allow-untrusted-channels": "--sdm-guix-allow-untrusted-channels",
+            "--unsafe-channel-evaluation": "--sdm-guix-unsafe-channel-evaluation",
+        }[flag]
+        raise WorkflowError(
+            f"guix software deployment: your guix predates {flag} "
+            f"({setting_name}) and is too old. Run `guix pull` now to "
+            "avoid known vulnerabilities -- this is not optional."
+        )
 
     def _use_time_machine(self) -> bool:
         settings: Optional[Settings] = self.settings
@@ -160,21 +200,24 @@ class Env(EnvBase):
 
         if self._use_time_machine():
             pin_kind, pin_value = self._time_machine_pin()
-            if pin_kind == "channels_file":
-                prefix = (
-                    f"guix time-machine -C {shlex.quote(pin_value)} "
-                    "-- guix shell"
-                )
+            flags = []
+            if pin_kind == "channels":
+                flags.append(f"-C {shlex.quote(pin_value)}")
             else:
                 url, commit, branch = pin_value
-                flags = []
                 if url is not None:
                     flags.append(f"--url={shlex.quote(url)}")
                 if commit is not None:
                     flags.append(f"--commit={shlex.quote(commit)}")
                 if branch is not None:
                     flags.append(f"--branch={shlex.quote(branch)}")
-                prefix = "guix time-machine " + " ".join(flags) + " -- guix shell"
+            if settings is not None and settings.allow_untrusted_channels:
+                self._require_time_machine_flag("--allow-untrusted-channels")
+                flags.append("--allow-untrusted-channels")
+            if settings is not None and settings.unsafe_channel_evaluation:
+                self._require_time_machine_flag("--unsafe-channel-evaluation")
+                flags.append("--unsafe-channel-evaluation")
+            prefix = "guix time-machine " + " ".join(flags) + " -- guix shell"
         else:
             prefix = "guix shell"
 
@@ -218,13 +261,19 @@ class Env(EnvBase):
         if settings is not None:
             hash_object.update(str(settings.container).encode())
             hash_object.update(str(settings.no_time_machine).encode())
+            hash_object.update(str(settings.allow_untrusted_channels).encode())
+            hash_object.update(str(settings.unsafe_channel_evaluation).encode())
 
         if self._use_time_machine():
             pin_kind, pin_value = self._time_machine_pin()
-            if pin_kind == "channels_file":
-                with open(pin_value, "rb") as f:
-                    hash_object.update(b"channels:")
-                    hash_object.update(f.read())
+            if pin_kind == "channels":
+                if os.path.isfile(pin_value):
+                    with open(pin_value, "rb") as f:
+                        hash_object.update(b"channels:")
+                        hash_object.update(f.read())
+                        hash_object.update(b"\0")
+                else:
+                    hash_object.update(b"channels-uri:" + pin_value.encode())
                     hash_object.update(b"\0")
             else:
                 url, commit, branch = pin_value
