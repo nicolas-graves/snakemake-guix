@@ -313,7 +313,7 @@ its scheduler plugins.")
 (define-public python-snakemake-interface-software-deployment-plugins
   (package/inherit guix:python-snakemake-interface-software-deployment-plugins
     (name "python-snakemake-interface-software-deployment-plugins")
-    (version "0.18.3")
+    (version "0.18.6")
     (source
      (origin
        (method git-fetch)
@@ -323,7 +323,7 @@ its scheduler plugins.")
               (commit (string-append "v" version))))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "12srz6m4k00c70x3mpy079jik26ya2gcdwbnyba1vi7v9b9ldnsj"))))
+        (base32 "10dv8317ryxa05bdfyy6hqlwjxl0crnhfy66zvsl662zvzcb2hm6"))))
     (build-system pyproject-build-system)
     (arguments
      (list
@@ -483,12 +483,12 @@ files from HTTP(s) in Snakemake.")
 
 (define-public snakemake-with-software-deployment
   ;; Commit of branch feat/software-deployment-plugins
-  (let ((commit "6f0740f29baa83cb5f5fbb09952c2651f1b033c1")
-        (revision "3"))
+  (let ((commit "5d24c4d0316a9682e19865f0c9f919ba3cf26a60")
+        (revision "1"))
     (package/inherit guix:snakemake
       (name "snakemake")
       ;; Version of last common commit with master branch
-      (version (git-version "9.23.1" revision commit))
+      (version (git-version "9.25.1" revision commit))
       (source
        (origin
          (method git-fetch)
@@ -497,7 +497,7 @@ files from HTTP(s) in Snakemake.")
                 (commit commit)))
          (file-name (git-file-name name version))
          (sha256
-          (base32 "0nb5vhsf2h5hgvnh3fmhb4aq5cby0j0rliw85a1cjlc9fyqzxamj"))
+          (base32 "0lii85rk0l0apr9n8ymqz5mkk5082yp3hd02wvlb68jq4ak2arb2"))
          (patches
           (snakemake-guix-patches "snakemake-4009.patch"
                                   "snakemake-allow-without-conda.patch"
@@ -507,12 +507,15 @@ files from HTTP(s) in Snakemake.")
          ((#:test-flags test-flags)
           #~(cons*
              ;; Added, we ignore Conda
+             ;; TODO Report upstream, this should not happen.
              "--ignore=tests/test_software_directive.py"
              ;; Broken
              "--ignore=tests/test_jupyter_notebook_pathlike.py"
              "--ignore=tests/test_persistence.py"
              "--deselect=tests/test_script.py::TestBashEncoder"
              "--deselect=tests/test_sourcecache.py::test_github_file_fetch"
+             ;; This test requires snakemake-executor-plugin-cluster-generic.
+             "--deselect=tests/test_logging.py::test_group_job_failure_events"
              #$test-flags))
          ((#:phases phases #~%standard-phases)
           #~(modify-phases #$phases
