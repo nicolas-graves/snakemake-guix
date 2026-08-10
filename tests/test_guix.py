@@ -1,6 +1,7 @@
 """Tests for the Guix software deployment plugin."""
 
 import hashlib
+import io
 import shutil
 import tempfile
 from pathlib import Path
@@ -603,8 +604,13 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
         assert command.startswith(f"guix time-machine -C {swhid} -- guix shell")
 
     def test_record_hash_handles_swhid_channels_without_filesystem_access(
-        self,
+        self, monkeypatch
     ) -> None:
+        def fail_urlopen(*args, **kwargs):
+            raise AssertionError("SWHID channels should not be fetched")
+
+        monkeypatch.setattr(guixenv, "urlopen", fail_urlopen)
+
         def make_env(swhid: str) -> Env:
             spec = EnvSpec(packages=["hello"], channels=swhid)
             return self._make_env(spec)
@@ -620,6 +626,67 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
         )
 
         assert first_hash.hexdigest() != second_hash.hexdigest()
+
+    def test_record_hash_reflects_local_channels_content(self) -> None:
+        spec = EnvSpec(
+            packages=["hello"], channels=EnvSpecSourceFile(self.channels_path)
+        )
+        env = self._make_env(spec)
+
+        first_hash = hashlib.md5(usedforsecurity=False)
+        env.record_hash(first_hash)
+
+        self.channels_path.write_text("(list (channel (name 'guix)))\n")
+
+        second_hash = hashlib.md5(usedforsecurity=False)
+        env.record_hash(second_hash)
+
+        assert first_hash.hexdigest() != second_hash.hexdigest()
+
+    def test_record_hash_reflects_http_channels_content(
+        self, monkeypatch
+    ) -> None:
+        class FakeResponse(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                self.close()
+
+        contents = [
+            b"(list (channel (name 'guix) (commit \"first\")))\n",
+            b"(list (channel (name 'guix) (commit \"second\")))\n",
+        ]
+
+        def fake_urlopen(url, timeout):
+            assert url == "https://example.org/channels.scm"
+            assert timeout == 60
+            return FakeResponse(contents.pop(0))
+
+        monkeypatch.setattr(guixenv, "urlopen", fake_urlopen)
+        spec = EnvSpec(packages=["hello"], channels="https://example.org/channels.scm")
+        env = self._make_env(spec)
+
+        first_hash = hashlib.md5(usedforsecurity=False)
+        env.record_hash(first_hash)
+
+        second_hash = hashlib.md5(usedforsecurity=False)
+        env.record_hash(second_hash)
+
+        assert first_hash.hexdigest() != second_hash.hexdigest()
+
+    def test_record_hash_http_channels_fetch_failure_raises(
+        self, monkeypatch
+    ) -> None:
+        def fail_urlopen(url, timeout):
+            raise OSError("network unavailable")
+
+        monkeypatch.setattr(guixenv, "urlopen", fail_urlopen)
+        spec = EnvSpec(packages=["hello"], channels="https://example.org/channels.scm")
+        env = self._make_env(spec)
+
+        with pytest.raises(WorkflowError, match="failed to fetch channels URL"):
+            env.record_hash(hashlib.md5(usedforsecurity=False))
 
     def test_decorate_shellcmd_adds_trust_flags(self) -> None:
         spec = EnvSpec(

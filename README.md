@@ -150,8 +150,10 @@ rule my_rule:
 
 ## Channels
 
-`channels=` pins the exact Guix revision used for an environment, enabling
-bit-for-bit reproducibility. It accepts any of the three forms Guix's own
+`channels=` selects the Guix channels used for an environment. Local channel
+files and Software Heritage SWHIDs are pinned inputs suitable for bit-for-bit
+reproducibility; http(s) URLs are only as pinned as the content served by that
+URL. It accepts any of the three forms Guix's own
 `time-machine -C`/`--channels` flag accepts:
 
 - a **local file path** to a channels.scm. Generate one from your current
@@ -162,9 +164,11 @@ bit-for-bit reproducibility. It accepts any of the three forms Guix's own
   ```
 
 - an **http(s) URL**, which `guix time-machine` downloads transparently at
-  run time (the plugin passes the URL straight through — it does not
-  pre-fetch it, since that would fetch different content than what `guix`
-  itself would resolve):
+  run time. The plugin passes the URL straight through when constructing the
+  shell command, then fetches the same URL during environment hash computation
+  so Snakemake can notice if the served channels file changes. Moving URLs
+  such as `latest` are convenient but not immutable; prefer a local
+  `channels.scm` or `swh:` SWHID for archival reproducibility:
 
   ```bash
   snakemake --sdm guix --sdm-guix-channels \

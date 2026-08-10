@@ -4,6 +4,8 @@ import subprocess as sp
 import tempfile
 from pathlib import Path
 from typing import Iterable, Optional
+from urllib.error import URLError
+from urllib.request import urlopen
 
 from snakemake_interface_common.exceptions import WorkflowError
 from snakemake_interface_software_deployment_plugins import (
@@ -12,7 +14,10 @@ from snakemake_interface_software_deployment_plugins import (
     SoftwareReport,
 )
 
-from snakemake_software_deployment_plugin_guix.channels import classify_channels_value
+from snakemake_software_deployment_plugin_guix.channels import (
+    classify_channels_value,
+    is_swhid,
+)
 from snakemake_software_deployment_plugin_guix.common import time_machine_supports_flag
 from snakemake_software_deployment_plugin_guix.guixenvspec import EnvSpec
 from snakemake_software_deployment_plugin_guix.settings import Settings
@@ -240,6 +245,25 @@ class Env(EnvBase):
         result = self.run_cmd(cmd, stdout=sp.DEVNULL, stderr=sp.DEVNULL)
         return result.returncode == 0
 
+    @staticmethod
+    def _record_channels_content_hash(hash_object, content: bytes) -> None:
+        hash_object.update(b"channels:")
+        hash_object.update(content)
+        hash_object.update(b"\0")
+
+    @staticmethod
+    def _fetch_channels_url(value: str) -> bytes:
+        try:
+            with urlopen(value, timeout=60) as response:
+                return response.read()
+        except (OSError, URLError) as e:
+            raise WorkflowError(
+                "guix software deployment: failed to fetch channels URL "
+                f"{value!r} while computing the environment hash. Snakemake "
+                "cannot track reproducibility/staleness for this mutable URL "
+                "without reading its content."
+            ) from e
+
     def record_hash(self, hash_object) -> None:
         for manifest_file in self._manifest_sources():
             manifest_path = self._manifest_source_path(manifest_file)
@@ -269,12 +293,14 @@ class Env(EnvBase):
             if pin_kind == "channels":
                 if os.path.isfile(pin_value):
                     with open(pin_value, "rb") as f:
-                        hash_object.update(b"channels:")
-                        hash_object.update(f.read())
-                        hash_object.update(b"\0")
-                else:
+                        self._record_channels_content_hash(hash_object, f.read())
+                elif is_swhid(pin_value):
                     hash_object.update(b"channels-uri:" + pin_value.encode())
                     hash_object.update(b"\0")
+                else:
+                    self._record_channels_content_hash(
+                        hash_object, self._fetch_channels_url(pin_value)
+                    )
             else:
                 url, commit, branch = pin_value
                 hash_object.update(b"url:" + (url or "").encode() + b"\0")
