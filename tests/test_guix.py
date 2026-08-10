@@ -269,6 +269,26 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
         assert isinstance(spec.channels, EnvSpecSourceFile)
         assert str(spec.channels.path_or_uri) == str(self.channels_path)
 
+    def test_channels_file_deprecated_alias_still_works(self) -> None:
+        with pytest.warns(FutureWarning):
+            spec = EnvSpec(
+                packages=["hello"], channels_file=str(self.channels_path)
+            )
+
+        assert isinstance(spec.channels, EnvSpecSourceFile)
+        assert str(spec.channels.path_or_uri) == str(self.channels_path)
+
+    def test_channels_file_does_not_override_channels(self) -> None:
+        with pytest.warns(FutureWarning):
+            spec = EnvSpec(
+                packages=["hello"],
+                channels=str(self.channels_path),
+                channels_file="ignored.scm",
+            )
+
+        assert isinstance(spec.channels, EnvSpecSourceFile)
+        assert str(spec.channels.path_or_uri) == str(self.channels_path)
+
     def test_channels_swhid_is_kept_as_plain_string(self) -> None:
         swhid = "swh:1:cnt:ae02d8ba3538a385ee799e61cdd0dfc5e14a8d1b"
         spec = EnvSpec(packages=["hello"], channels=swhid)
@@ -346,6 +366,24 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
         assert command.startswith(
             f"guix time-machine -C {self.channels_path} -- guix shell"
         )
+
+    def test_decorate_shellcmd_uses_deprecated_per_rule_channels_file(self) -> None:
+        with pytest.warns(FutureWarning):
+            channels_file_spec = EnvSpec(
+                manifest_files=[EnvSpecSourceFile(self.manifest_path)],
+                channels_file=EnvSpecSourceFile(self.channels_path),
+            )
+        channels_spec = EnvSpec(
+            manifest_files=[EnvSpecSourceFile(self.manifest_path)],
+            channels=EnvSpecSourceFile(self.channels_path),
+        )
+
+        channels_file_command = self._make_env(channels_file_spec).decorate_shellcmd(
+            "hello"
+        )
+        channels_command = self._make_env(channels_spec).decorate_shellcmd("hello")
+
+        assert channels_file_command == channels_command
 
     def test_decorate_shellcmd_global_channels_overrides_per_rule(self) -> None:
         other_channels_path = self.temp_dir / "other-channels.scm"

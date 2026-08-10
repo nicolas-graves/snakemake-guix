@@ -15,6 +15,7 @@ class EnvSpec(EnvSpecBase):
     manifest_file: Optional[EnvSpecSourceFile] = None
     packages: Tuple[str, ...] = field(default_factory=tuple)
     channels: Optional[Union[str, EnvSpecSourceFile]] = None
+    channels_file: Optional[Union[str, EnvSpecSourceFile]] = None
     url: Optional[str] = None
     commit: Optional[str] = None
     branch: Optional[str] = None
@@ -23,13 +24,7 @@ class EnvSpec(EnvSpecBase):
         self.manifest_files = self._coerce_manifest_files(self.manifest_files)
         if isinstance(self.manifest_file, (str, Path)):
             self.manifest_file = EnvSpecSourceFile(self.manifest_file)
-        if isinstance(self.channels, (str, Path)):
-            value = str(self.channels)
-            self.channels = (
-                value
-                if classify_channels_value(value) == "direct"
-                else EnvSpecSourceFile(self.channels)
-            )
+        self.channels = self._coerce_channels(self.channels)
         if self.manifest_file is not None:
             warnings.warn(
                 "manifest_file= is deprecated; use manifest_files=[...] instead.",
@@ -40,8 +35,29 @@ class EnvSpec(EnvSpecBase):
                 self.manifest_files = (self.manifest_file,)
             elif self.manifest_file not in self.manifest_files:
                 self.manifest_files = (self.manifest_file,) + self.manifest_files
+        if self.channels_file is not None:
+            warnings.warn(
+                "channels_file= is deprecated; use channels= instead.",
+                FutureWarning,
+                stacklevel=2,
+            )
+            if self.channels is None:
+                self.channels = self._coerce_channels(self.channels_file)
         self.packages = self._coerce_packages(self.packages)
         self.manifest_file = self.manifest_files[0] if self.manifest_files else None
+
+    @staticmethod
+    def _coerce_channels(
+        value: Optional[Union[str, Path, EnvSpecSourceFile]],
+    ) -> Optional[Union[str, EnvSpecSourceFile]]:
+        if isinstance(value, (str, Path)):
+            value_str = str(value)
+            return (
+                value_str
+                if classify_channels_value(value_str) == "direct"
+                else EnvSpecSourceFile(value)
+            )
+        return value
 
     @staticmethod
     def _coerce_manifest_files(
