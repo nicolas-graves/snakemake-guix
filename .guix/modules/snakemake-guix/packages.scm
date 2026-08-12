@@ -158,16 +158,20 @@ batch or interactive systems without root privileges.")
 (define-public python-snakemake-interface-common
   (package/inherit guix:python-snakemake-interface-common
     (name "python-snakemake-interface-common")
-    (version "1.23.0")
+    (properties '((commit . "d585b5c0c7c0ec0df60a1a26d5d413f3ee88e63f")
+                  (revision . "0")))
+    (version (git-version "1.23.0"
+                          (assoc-ref properties 'revision)
+                          (assoc-ref properties 'commit)))
     (source
      (origin
        (method git-fetch)
        (uri (git-reference
               (url "https://github.com/snakemake/snakemake-interface-common")
-              (commit (string-append "v" version))))
+              (commit (assoc-ref properties 'commit))))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "1m6a7a81s999wgdfhvq8065aw6x4qr1ya811fsgjim57k6sf8yqg"))
+        (base32 "1zxks3jjwc5addx5wxgfb5zn2y2jzxz53n739b9w8qba3nwnzyj2"))
        (patches
         (snakemake-guix-patches "python-snakemake-interface-common-allow-missing.patch"))))
     (build-system pyproject-build-system)
