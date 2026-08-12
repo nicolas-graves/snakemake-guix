@@ -527,7 +527,9 @@ files from HTTP(s) in Snakemake.")
                 (lambda _
                   (substitute* "pyproject.toml"
                     (("\"pip\",")
-                     ""))))
+                     "")
+                    (("\"packaging.*\",")
+                     "\"packaging\","))))
               (delete 'patch-version)
               (delete 'call-wrapper-not-wrapped-snakemake)))))
       (propagated-inputs
