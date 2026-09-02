@@ -13,6 +13,7 @@
   #:use-module ((guix utils) #:select (substitute-keyword-arguments))
   #:use-module (gnu packages)
   #:use-module (gnu packages check)
+  #:use-module (gnu packages emacs-xyz)
   #:use-module (gnu packages package-management)
   #:use-module (gnu packages python-build)
   #:use-module ((gnu packages python-science) #:prefix guix:)
