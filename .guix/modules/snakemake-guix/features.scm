@@ -2,7 +2,7 @@
 
 (define-module (snakemake-guix features)
   ;; #:autoload (rde predicates) (ensure-pred)
-  #:autoload (rde features) (get-value %make-feature-procedure)
+  #:autoload (rde features) (get-value make-feature)
   #:autoload (rde serializers yaml) (yaml-serialize)
   #:use-module (gnu services)
   #:use-module (gnu home services)
@@ -46,10 +46,14 @@
                              `((cores . all)
                                (software-deployment-method . #(guix))))))))))
 
-  ;; XXX: See the previous commit for the canonical syntax.
-  ((@@ (rde features) %make-feature-procedure)
-   f-name
-   `((,f-name . ,snakemake))
-   get-home-services
-   (const '())
-   (location "./snakemake-guix/features.scm" 13 0)))
+  ;; MAKE-FEATURE is a plain keyword procedure (unlike the `feature' macro),
+  ;; so it works under #:autoload -- #:autoload only resolves procedures and
+  ;; variables, never macros, and every <feature> field it doesn't name here
+  ;; still gets a safe default, so future fields added to <feature> don't
+  ;; break this call the way they did when this used the raw, positional
+  ;; %make-feature-procedure (see git history for that version).
+  (make-feature
+   #:name f-name
+   #:values `((,f-name . ,snakemake))
+   #:home-services-getter get-home-services
+   #:location (location "./snakemake-guix/features.scm" 13 0)))
