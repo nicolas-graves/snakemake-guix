@@ -140,37 +140,38 @@ commands and support for highlighting embedded R code.")
   ;; Commit of branch feat/software-deployment-plugins
   (let ((commit "d1c87fcb9016b27843d7f96fcae699e9d303a705")
         (revision "1"))
-    (package/inherit guix:snakemake
-      (name "snakemake")
-      ;; Version of last common commit with master branch
-      (version (git-version "9.26.1" revision commit))
-      (source
-       (origin
-         (method git-fetch)
-         (uri (git-reference
-                (url "https://github.com/snakemake/snakemake")
-                (commit commit)))
-         (file-name (git-file-name name version))
-         (sha256
-          (base32 "082ywypqx9k76jra8zx09krwn1qjscpx8p2js0nymvj5xxdjxs8b"))
-         (patches
-          (snakemake-guix-patches "snakemake-4009.patch"
-                                  "snakemake-allow-without-conda.patch"
-                                  "snakemake-record-software-structured.patch"))))
-      (propagated-inputs
-       (modify-inputs (package-propagated-inputs guix:snakemake)
-         (replace "python-snakemake-interface-common"
-           python-snakemake-interface-common)
-         (replace "python-snakemake-interface-report-plugins"
-           python-snakemake-interface-report-plugins)
-         (replace "python-snakemake-interface-software-deployment-plugins"
-           python-snakemake-interface-software-deployment-plugins)))
-      (native-inputs
-       (modify-inputs (package-native-inputs guix:snakemake)
-         (append python-pytest
-                 python-setuptools-scm
-                 guix:python-snakemake-software-deployment-plugin-container
-                 guix:python-snakemake-software-deployment-plugin-envmodules))))))
+    ((package-input-rewriting/spec
+      `(("python-snakemake-interface-common" .
+         ,(const python-snakemake-interface-common))))
+     (package/inherit guix:snakemake
+       (name "snakemake")
+       ;; Version of last common commit with master branch
+       (version (git-version "9.26.1" revision commit))
+       (source
+        (origin
+          (method git-fetch)
+          (uri (git-reference
+                 (url "https://github.com/snakemake/snakemake")
+                 (commit commit)))
+          (file-name (git-file-name name version))
+          (sha256
+           (base32 "082ywypqx9k76jra8zx09krwn1qjscpx8p2js0nymvj5xxdjxs8b"))
+          (patches
+           (snakemake-guix-patches "snakemake-4009.patch"
+                                   "snakemake-allow-without-conda.patch"
+                                   "snakemake-record-software-structured.patch"))))
+       (propagated-inputs
+        (modify-inputs (package-propagated-inputs guix:snakemake)
+          (replace "python-snakemake-interface-report-plugins"
+            python-snakemake-interface-report-plugins)
+          (replace "python-snakemake-interface-software-deployment-plugins"
+            python-snakemake-interface-software-deployment-plugins)))
+       (native-inputs
+        (modify-inputs (package-native-inputs guix:snakemake)
+          (append python-pytest
+                  python-setuptools-scm
+                  guix:python-snakemake-software-deployment-plugin-container
+                  guix:python-snakemake-software-deployment-plugin-envmodules)))))))
 
 (define-public python-snakemake-software-deployment-plugin-guix
   (package
