@@ -114,6 +114,44 @@ channels file:
 snakemake --sdm guix --sdm-guix-commit <commit>
 ```
 
+### Caching Profiles Across Runs
+
+By default, every rule invocation realizes its environment on the fly via
+`guix shell -m ...`. To instead keep persistent, project-local profiles that
+are reused across runs and `guix pull` generations, set a cache directory:
+
+```bash
+snakemake --sdm guix --sdm-guix-profile-cache .snakemake/guix/profiles
+```
+
+A relative path is resolved against the workflow working directory. It is
+recommended to add the directory to your VCS ignore file, e.g.:
+
+```
+.snakemake/guix/profiles/
+```
+
+The cache root is not a single mutable profile: it is a directory containing
+one realized profile per distinct environment, keyed by a content hash of
+that environment's manifest, packages, and effective channel/pin/settings.
+Rules with different environments never share or overwrite each other's
+profile. The first rule to need a given environment realizes it once; every
+later rule (in this run or a future one) that resolves to the same
+environment reuses the completed profile directly, skipping realization.
+
+Changing a rule's manifest, packages, or pin intentionally selects a
+different (or new) profile. When an environment is pinned via `channels=`,
+`url=`/`commit=`/`branch=`, or the equivalent `--sdm-guix-*` settings, running
+a plain `guix pull` on your machine does *not* by itself invalidate the
+cached profile — the pin, not your global Guix generation, determines
+reproducibility. An unpinned environment (`--sdm-guix-time-machine false`, or
+no pin configured) is realized against whatever `guix` is on `PATH`, so its
+cached profile can go stale relative to a newer local Guix; remove the
+corresponding profile directory to force realization again.
+
+There is currently no automated pruning of old or unused profiles; remove
+subdirectories under the cache root manually as needed.
+
 ## Configuration
 
 Plugin-specific settings are passed via `--sdm-guix-<option>`:
@@ -128,6 +166,7 @@ Plugin-specific settings are passed via `--sdm-guix-<option>`:
 | `--sdm-guix-container` | Run `guix shell` with `--container` for isolation | False |
 | `--sdm-guix-time-machine` | Use `guix time-machine` for reproducibility | True |
 | `--sdm-guix-additional-args` | Extra arguments forwarded to `guix shell` | None |
+| `--sdm-guix-profile-cache` | Directory of persistent, content-addressed Guix profiles reused across runs and `guix pull` generations; relative paths resolve against the workflow working directory | None (disabled) |
 | `--sdm-guix-allow-untrusted-channels` | Bypass commit-signature verification for `time-machine` channels | False |
 | `--sdm-guix-unsafe-channel-evaluation` | Allow arbitrary code execution from `time-machine` channels files | False |
 

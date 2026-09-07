@@ -59,6 +59,17 @@ class Settings(SoftwareDeploymentSettingsBase):
         default=None,
         metadata={"help": "Additional arguments forwarded to guix shell."},
     )
+    profile_cache: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Directory in which to keep persistent, content-addressed "
+            "Guix profiles, one per distinct environment, reused across runs "
+            "and `guix pull` generations instead of realizing a fresh `guix "
+            "shell` environment every time. Relative paths are resolved "
+            "against the workflow working directory. Unset disables the "
+            "cache and preserves the previous `guix shell -m ...` behavior."
+        },
+    )
     allow_untrusted_channels: bool = field(
         default=False,
         metadata={

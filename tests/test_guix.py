@@ -2,8 +2,12 @@
 
 import hashlib
 import io
+import shlex
 import shutil
+import subprocess as sp
 import tempfile
+import threading
+import time
 from pathlib import Path
 from typing import Optional, Type
 
@@ -793,6 +797,506 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
         make_env(commit="other-commit").record_hash(second_hash)
 
         assert first_hash.hexdigest() != second_hash.hexdigest()
+
+    @staticmethod
+    def _install_fake_guix_package(
+        monkeypatch, calls: Optional[list] = None, returncode: int = 0, stdout: str = ""
+    ) -> None:
+        def fake_run_cmd(env_self, cmd, **kwargs):
+            if calls is not None:
+                calls.append(cmd)
+            parts = shlex.split(cmd)
+            if returncode != 0:
+                return sp.CompletedProcess(args=parts, returncode=returncode, stdout=stdout)
+            p_index = parts.index("-p")
+            temp_profile = Path(parts[p_index + 1])
+            generation_dir = temp_profile.parent / (temp_profile.name + "-1-link")
+            (generation_dir / "etc").mkdir(parents=True, exist_ok=True)
+            (generation_dir / "etc" / "profile").write_text("# fake guix profile\n")
+            if temp_profile.exists() or temp_profile.is_symlink():
+                temp_profile.unlink()
+            temp_profile.symlink_to(generation_dir.name)
+            return sp.CompletedProcess(args=parts, returncode=0, stdout=stdout)
+
+        monkeypatch.setattr(Env, "run_cmd", fake_run_cmd)
+
+    def test_profile_cache_disabled_by_default(self) -> None:
+        assert Settings().profile_cache is None
+
+    def test_profile_cache_relative_path_resolves_against_cwd(
+        self, monkeypatch
+    ) -> None:
+        monkeypatch.chdir(self.temp_dir)
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(profile_cache="relative-cache"),
+        )
+
+        assert env._effective_profile_cache_root() == (
+            self.temp_dir / "relative-cache"
+        ).resolve()
+
+    def test_profile_cache_absolute_path_resolves_to_itself(self) -> None:
+        cache_root = self.temp_dir / "abs-cache"
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(profile_cache=str(cache_root)),
+        )
+
+        assert env._effective_profile_cache_root() == cache_root.resolve()
+
+    def test_profile_cache_realizes_and_reuses_profile(self, monkeypatch) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        calls = []
+        self._install_fake_guix_package(monkeypatch, calls=calls)
+        cache_root = self.temp_dir / "cache"
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(profile_cache=str(cache_root), no_time_machine=True),
+        )
+
+        first_command = env.decorate_shellcmd("hello")
+        assert len(calls) == 1
+
+        env_dir = cache_root / env.hash()
+        profile_path = env_dir / "profile"
+        assert (env_dir / ".complete").exists()
+        assert profile_path.exists()
+        assert first_command == f"guix shell -p {profile_path} -- bash -c hello"
+
+        second_command = env.decorate_shellcmd("hello")
+        assert len(calls) == 1
+        assert second_command == first_command
+
+    def test_profile_cache_identical_hash_selects_same_profile(
+        self, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        self._install_fake_guix_package(monkeypatch)
+        cache_root = self.temp_dir / "cache"
+
+        env_a = self._make_env(
+            EnvSpec(manifest_files=[EnvSpecSourceFile(self.manifest_path)]),
+            settings=Settings(profile_cache=str(cache_root), no_time_machine=True),
+        )
+        env_b = self._make_env(
+            EnvSpec(manifest_files=[EnvSpecSourceFile(self.manifest_path)]),
+            settings=Settings(profile_cache=str(cache_root), no_time_machine=True),
+        )
+
+        assert env_a.hash() == env_b.hash()
+        assert env_a.decorate_shellcmd("hello") == env_b.decorate_shellcmd("hello")
+
+    def test_profile_cache_selects_distinct_profile_per_environment_hash(
+        self, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        self._install_fake_guix_package(monkeypatch)
+        cache_root = self.temp_dir / "cache"
+        no_time_machine_settings = dict(
+            profile_cache=str(cache_root), no_time_machine=True
+        )
+
+        # Packages, manifest contents, and settings (container) affecting
+        # realization all select distinct profiles, independent of the
+        # time-machine pin.
+        env_packages = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(**no_time_machine_settings),
+        )
+        env_other_packages = self._make_env(
+            EnvSpec(packages=["coreutils"]),
+            settings=Settings(**no_time_machine_settings),
+        )
+        env_manifest = self._make_env(
+            EnvSpec(manifest_files=[EnvSpecSourceFile(self.manifest_path)]),
+            settings=Settings(**no_time_machine_settings),
+        )
+        env_container = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(container=True, **no_time_machine_settings),
+        )
+
+        # Channel and pin content only affect the hash while time-machine is
+        # active (mirrors test_record_hash_excludes_channels_when_no_time_machine).
+        env_pinned = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(profile_cache=str(cache_root)),
+        )
+        env_channels = self._make_env(
+            EnvSpec(packages=["hello"], channels=EnvSpecSourceFile(self.channels_path)),
+            settings=Settings(profile_cache=str(cache_root)),
+        )
+        env_commit = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(commit=self.sample_commit, profile_cache=str(cache_root)),
+        )
+
+        all_envs = (
+            env_packages,
+            env_other_packages,
+            env_manifest,
+            env_container,
+            env_pinned,
+            env_channels,
+            env_commit,
+        )
+        hashes = {env.hash() for env in all_envs}
+        assert len(hashes) == len(all_envs)
+
+        for env in all_envs:
+            env.decorate_shellcmd("hello")
+            assert (cache_root / env.hash() / "profile").exists()
+
+    def test_profile_cache_hash_ignores_ambient_global_profile(
+        self, monkeypatch
+    ) -> None:
+        env = self._make_env(
+            EnvSpec(packages=["hello"], commit=self.sample_commit),
+            settings=Settings(profile_cache=str(self.temp_dir / "cache")),
+        )
+
+        monkeypatch.setenv("GUIX_PROFILE", "/some/other/profile")
+        hash_with_ambient_profile = env.hash()
+
+        monkeypatch.delenv("GUIX_PROFILE", raising=False)
+        env.clear_hashes()
+        hash_without_ambient_profile = env.hash()
+
+        assert hash_with_ambient_profile == hash_without_ambient_profile
+
+    def test_profile_cache_failed_realization_is_not_marked_complete(
+        self, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        self._install_fake_guix_package(monkeypatch, returncode=1, stdout="boom")
+        cache_root = self.temp_dir / "cache"
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(profile_cache=str(cache_root), no_time_machine=True),
+        )
+
+        with pytest.raises(WorkflowError, match="failed to realize cached profile"):
+            env.decorate_shellcmd("hello")
+
+        env_dir = cache_root / env.hash()
+        assert not (env_dir / ".complete").exists()
+        assert list(env_dir.glob(".tmp-profile-*")) == []
+
+    def test_profile_cache_incomplete_profile_triggers_realization(
+        self, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        calls = []
+        self._install_fake_guix_package(monkeypatch, calls=calls)
+        cache_root = self.temp_dir / "cache"
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(profile_cache=str(cache_root), no_time_machine=True),
+        )
+
+        env_dir = cache_root / env.hash()
+        env_dir.mkdir(parents=True)
+        (env_dir / "profile").symlink_to("nonexistent-target")
+
+        env.decorate_shellcmd("hello")
+
+        assert len(calls) == 1
+        assert (env_dir / ".complete").exists()
+
+    def test_profile_cache_cleans_stale_temp_profile_before_realizing(
+        self, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        self._install_fake_guix_package(monkeypatch)
+        cache_root = self.temp_dir / "cache"
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(profile_cache=str(cache_root), no_time_machine=True),
+        )
+
+        env_dir = cache_root / env.hash()
+        env_dir.mkdir(parents=True)
+        stale = env_dir / ".tmp-profile-stale"
+        stale_generation = env_dir / ".tmp-profile-stale-1-link"
+        stale_generation.mkdir()
+        stale.symlink_to(stale_generation.name)
+
+        env.decorate_shellcmd("hello")
+
+        assert not stale.exists()
+        assert not stale_generation.exists()
+        assert (env_dir / ".complete").exists()
+
+    def test_profile_cache_concurrent_callers_realize_once(self, monkeypatch) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        lock = threading.Lock()
+        calls = []
+
+        def fake_run_cmd(env_self, cmd, **kwargs):
+            with lock:
+                calls.append(cmd)
+            time.sleep(0.1)
+            parts = shlex.split(cmd)
+            p_index = parts.index("-p")
+            temp_profile = Path(parts[p_index + 1])
+            generation_dir = temp_profile.parent / (temp_profile.name + "-1-link")
+            (generation_dir / "etc").mkdir(parents=True, exist_ok=True)
+            (generation_dir / "etc" / "profile").write_text("# fake\n")
+            temp_profile.symlink_to(generation_dir.name)
+            return sp.CompletedProcess(args=parts, returncode=0, stdout="")
+
+        monkeypatch.setattr(Env, "run_cmd", fake_run_cmd)
+
+        cache_root = self.temp_dir / "cache"
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(profile_cache=str(cache_root), no_time_machine=True),
+        )
+
+        results = []
+
+        def worker():
+            results.append(env.decorate_shellcmd("hello"))
+
+        threads = [threading.Thread(target=worker) for _ in range(6)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert len(calls) == 1
+        assert len(set(results)) == 1
+
+    def test_profile_cache_quotes_paths_and_commands_with_metacharacters(
+        self, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        self._install_fake_guix_package(monkeypatch)
+        cache_root = self.temp_dir / "weird cache & name"
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(profile_cache=str(cache_root), no_time_machine=True),
+        )
+
+        command = env.decorate_shellcmd("echo $HOME; rm -rf /")
+
+        profile_path = cache_root / env.hash() / "profile"
+        assert shlex.quote(str(profile_path)) in command
+        assert shlex.quote("echo $HOME; rm -rf /") in command
+
+    def test_profile_cache_falls_back_to_sourcing_profile_without_flag_support(
+        self, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: False)
+        self._install_fake_guix_package(monkeypatch)
+        cache_root = self.temp_dir / "cache"
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(profile_cache=str(cache_root), no_time_machine=True),
+        )
+
+        command = env.decorate_shellcmd("hello")
+        profile_path = cache_root / env.hash() / "profile"
+
+        assert command.startswith("bash -c ")
+        assert "guix shell" not in command
+        assert str(profile_path / "etc" / "profile") in command
+
+    def test_profile_cache_container_without_profile_flag_support_raises(
+        self, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: False)
+        cache_root = self.temp_dir / "cache"
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(
+                profile_cache=str(cache_root), container=True, no_time_machine=True
+            ),
+        )
+
+        with pytest.raises(WorkflowError, match="requires a guix"):
+            env.decorate_shellcmd("hello")
+
+    def test_profile_cache_preserves_container_and_additional_args(
+        self, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        self._install_fake_guix_package(monkeypatch)
+        cache_root = self.temp_dir / "cache"
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(
+                profile_cache=str(cache_root),
+                container=True,
+                additional_args=["--share=/tmp"],
+                no_time_machine=True,
+            ),
+        )
+
+        command = env.decorate_shellcmd("hello")
+
+        assert command.startswith("guix shell --container --share=/tmp -p ")
+
+    def test_profile_cache_realize_uses_time_machine_pin(self, monkeypatch) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        calls = []
+        self._install_fake_guix_package(monkeypatch, calls=calls)
+        cache_root = self.temp_dir / "cache"
+        env = self._make_env(
+            EnvSpec(packages=["hello"], commit=self.sample_commit),
+            settings=Settings(profile_cache=str(cache_root)),
+        )
+
+        env.decorate_shellcmd("hello")
+
+        assert calls[0].startswith(
+            f"guix time-machine --commit={self.sample_commit} -- guix package -p "
+        )
+
+    def test_profile_cache_no_time_machine_realize_command(
+        self, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        calls = []
+        self._install_fake_guix_package(monkeypatch, calls=calls)
+        cache_root = self.temp_dir / "cache"
+        env = self._make_env(
+            EnvSpec(packages=["hello"], commit=self.sample_commit),
+            settings=Settings(profile_cache=str(cache_root), no_time_machine=True),
+        )
+
+        env.decorate_shellcmd("hello")
+
+        assert calls[0].startswith("guix package -p ")
+        assert "time-machine" not in calls[0]
+
+    def test_profile_cache_within_nesting_still_composes(self, monkeypatch) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        self._install_fake_guix_package(monkeypatch)
+        cache_root = self.temp_dir / "cache"
+
+        outer_env = self._make_env(
+            EnvSpec(packages=["coreutils"]), settings=Settings(no_time_machine=True)
+        )
+        inner_env = Env(
+            spec=EnvSpec(packages=["hello"]),
+            within=outer_env,
+            settings=Settings(profile_cache=str(cache_root), no_time_machine=True),
+            shell_executable=ShellExecutable(
+                executable="/bin/sh", command_arg="-c"
+            ),
+            mountpoints=[],
+            tempdir=self.temp_dir,
+            cache_prefix=self.temp_dir,
+            deployment_prefix=self.temp_dir,
+            pinfile_prefix=self.temp_dir,
+        )
+
+        inner_only = inner_env.decorate_shellcmd("hello")
+        composed = inner_env.managed_decorate_shellcmd("hello")
+
+        assert composed != inner_only
+        assert shlex.quote(inner_only) in composed
+
+    def test_profile_cache_generated_manifest_survives_until_realized_then_removed(
+        self, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        seen_manifest_paths = []
+
+        def fake_run_cmd(env_self, cmd, **kwargs):
+            parts = shlex.split(cmd)
+            m_index = parts.index("-m")
+            manifest_path = Path(parts[m_index + 1])
+            assert manifest_path.exists()
+            seen_manifest_paths.append(manifest_path)
+            p_index = parts.index("-p")
+            temp_profile = Path(parts[p_index + 1])
+            generation_dir = temp_profile.parent / (temp_profile.name + "-1-link")
+            (generation_dir / "etc").mkdir(parents=True, exist_ok=True)
+            (generation_dir / "etc" / "profile").write_text("# fake\n")
+            temp_profile.symlink_to(generation_dir.name)
+            return sp.CompletedProcess(args=parts, returncode=0, stdout="")
+
+        monkeypatch.setattr(Env, "run_cmd", fake_run_cmd)
+
+        cache_root = self.temp_dir / "cache"
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(profile_cache=str(cache_root), no_time_machine=True),
+        )
+
+        env.decorate_shellcmd("hello")
+
+        assert len(seen_manifest_paths) == 1
+        assert not seen_manifest_paths[0].exists()
+
+    def test_contains_executable_uses_cached_profile(self, monkeypatch) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        realize_calls = []
+        self._install_fake_guix_package(monkeypatch, calls=realize_calls)
+        cache_root = self.temp_dir / "cache"
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(profile_cache=str(cache_root), no_time_machine=True),
+        )
+
+        env.decorate_shellcmd("hello")
+        assert len(realize_calls) == 1
+
+        which_calls = []
+
+        def fake_which_run_cmd(env_self, cmd, **kwargs):
+            which_calls.append(cmd)
+            return sp.CompletedProcess(args=cmd, returncode=0, stdout="")
+
+        monkeypatch.setattr(Env, "run_cmd", fake_which_run_cmd)
+
+        assert env.contains_executable("hello") is True
+        assert len(which_calls) == 1
+        profile_path = cache_root / env.hash() / "profile"
+        assert which_calls[0] == (
+            f"guix shell -p {profile_path} -- bash -c {shlex.quote('which hello')}"
+        )
+
+    def test_profile_cache_integration_reuses_real_profile(
+        self, monkeypatch
+    ) -> None:
+        cache_root = self.temp_dir / "profile-cache"
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(profile_cache=str(cache_root), no_time_machine=True),
+        )
+
+        real_run_cmd = Env.run_cmd
+        calls = []
+
+        def tracking_run_cmd(self_, cmd, **kwargs):
+            calls.append(cmd)
+            return real_run_cmd(self_, cmd, **kwargs)
+
+        monkeypatch.setattr(Env, "run_cmd", tracking_run_cmd)
+
+        first_command = env.decorate_shellcmd("hello")
+        assert any("guix package" in c for c in calls)
+
+        first_result = sp.run(first_command, shell=True, capture_output=True, text=True)
+        assert first_result.returncode == 0, first_result.stderr
+
+        profile_path = cache_root / env.hash() / "profile"
+        assert profile_path.exists()
+        assert profile_path.resolve().exists()
+
+        calls.clear()
+        second_command = env.decorate_shellcmd("hello")
+        assert not any("guix package" in c for c in calls)
+        assert second_command == first_command
+
+        second_result = sp.run(
+            second_command, shell=True, capture_output=True, text=True
+        )
+        assert second_result.returncode == 0, second_result.stderr
 
 
 @pytest.mark.skipif(

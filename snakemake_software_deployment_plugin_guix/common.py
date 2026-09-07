@@ -41,6 +41,33 @@ def time_machine_supports_flag(flag: str) -> bool:
     return flag in _time_machine_help()
 
 
+@functools.lru_cache(maxsize=1)
+def _shell_help() -> str:
+    """Return the output of `guix shell --help`, or "" if it cannot be
+    determined (guix missing, or too old to even run --help successfully).
+    Cached since this shells out to guix, which is comparatively slow to
+    start.
+    """
+    try:
+        result = subprocess.run(
+            ["guix", "shell", "--help"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout
+    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        return ""
+
+
+def shell_supports_profile_flag() -> bool:
+    """Whether the installed guix's `shell` subcommand supports activating an
+    existing profile directly via `-p`/`--profile`, determined by feature-
+    detecting against its --help output.
+    """
+    return "--profile" in _shell_help()
+
+
 def get_default_channels() -> str:
     """Return current Guix channels as a string, falling back to a minimal stub."""
     try:
