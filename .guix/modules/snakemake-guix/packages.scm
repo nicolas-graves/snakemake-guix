@@ -89,6 +89,21 @@ for Snakemake's rule blocks, as well as an interface for running Snakemake
 commands and support for highlighting embedded R code.")
       (license license:gpl3+))))
 
+(define-public python-snakemake-interface-common
+  (package/inherit guix:python-snakemake-interface-common
+    (name "python-snakemake-interface-common")
+    (version "1.23.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url (string-append "https://github.com/snakemake/"
+                                  "snakemake-interface-common"))
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0pda0qcwg5gcbhpff5ax69m8yhkcf01m9c4dcprp99mg424xabl5"))))))
+
 (define-public python-snakemake-interface-report-plugins
   (package/inherit guix:python-snakemake-interface-report-plugins
     (name "python-snakemake-interface-report-plugins")
@@ -103,12 +118,28 @@ commands and support for highlighting embedded R code.")
        (file-name (git-file-name name version))
        (sha256
         (base32 "0rkbviqaxxc9lajf5rj06xh9acpxkzfsd0v20i9mcjj4wlry0wqf"))))
-    (propagated-inputs (list guix:python-snakemake-interface-common))))
+    (propagated-inputs (list python-snakemake-interface-common))))
+
+(define-public python-snakemake-interface-software-deployment-plugins
+  (package/inherit guix:python-snakemake-interface-software-deployment-plugins
+    (name "python-snakemake-interface-software-deployment-plugins")
+    (version "0.19.1")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url (string-append "https://github.com/snakemake/"
+                                  "snakemake-interface-software-deployment-plugins"))
+              (commit (string-append "v" version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0axs0f75kgl5bjnszl0dcz1pnxnfl1vihsjwc89ra2l7gfdx9757"))))
+    (propagated-inputs (list python-snakemake-interface-common))))
 
 (define-public snakemake-with-software-deployment
   ;; Commit of branch feat/software-deployment-plugins
-  (let ((commit "2d502d2c6828e1639c21743c812a7e70d3044135")
-        (revision "0"))
+  (let ((commit "d1c87fcb9016b27843d7f96fcae699e9d303a705")
+        (revision "1"))
     (package/inherit guix:snakemake
       (name "snakemake")
       ;; Version of last common commit with master branch
@@ -121,15 +152,19 @@ commands and support for highlighting embedded R code.")
                 (commit commit)))
          (file-name (git-file-name name version))
          (sha256
-          (base32 "11d5zpm2gkrgvqlpj539f632np30ydm7w8c8j34wxir3qvfdgn20"))
+          (base32 "082ywypqx9k76jra8zx09krwn1qjscpx8p2js0nymvj5xxdjxs8b"))
          (patches
           (snakemake-guix-patches "snakemake-4009.patch"
                                   "snakemake-allow-without-conda.patch"
                                   "snakemake-record-software-structured.patch"))))
       (propagated-inputs
        (modify-inputs (package-propagated-inputs guix:snakemake)
+         (replace "python-snakemake-interface-common"
+           python-snakemake-interface-common)
          (replace "python-snakemake-interface-report-plugins"
-           python-snakemake-interface-report-plugins)))
+           python-snakemake-interface-report-plugins)
+         (replace "python-snakemake-interface-software-deployment-plugins"
+           python-snakemake-interface-software-deployment-plugins)))
       (native-inputs
        (modify-inputs (package-native-inputs guix:snakemake)
          (append python-pytest
@@ -159,7 +194,7 @@ commands and support for highlighting embedded R code.")
      (list guix python-flit-core python-pytest))
     (propagated-inputs
      (list snakemake-with-software-deployment
-           guix:python-snakemake-interface-software-deployment-plugins))
+           python-snakemake-interface-software-deployment-plugins))
     (home-page "https://github.com/nicolas-graves/snakemake-guix")
     (synopsis "Run Snakemake within a Guix shell or time-machine")
     (description "This package provides a software deployment plugin for Snakemake
