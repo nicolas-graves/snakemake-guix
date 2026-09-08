@@ -138,6 +138,12 @@ commands and support for highlighting embedded R code.")
         (sha256
          (base32 "0axs0f75kgl5bjnszl0dcz1pnxnfl1vihsjwc89ra2l7gfdx9757")))))))
 
+(define-public python-snakemake-storage-plugin-http
+  ((package-input-rewriting/spec
+    `(("python-snakemake-interface-common" .
+       ,(const python-snakemake-interface-common))))
+   (package/inherit guix:python-snakemake-storage-plugin-http)))
+
 (define-public snakemake-with-software-deployment
   ;; Commit of branch feat/software-deployment-plugins
   (let ((commit "d1c87fcb9016b27843d7f96fcae699e9d303a705")
