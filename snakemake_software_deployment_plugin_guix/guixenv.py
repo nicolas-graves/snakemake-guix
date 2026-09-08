@@ -228,7 +228,7 @@ class Env(EnvBase):
         if not self._use_time_machine():
             return f"guix {guix_subcommand}"
         flags = self._time_machine_flags()
-        return "guix time-machine " + " ".join(flags) + f" -- guix {guix_subcommand}"
+        return "guix time-machine " + " ".join(flags) + f" -- {guix_subcommand}"
 
     def _effective_profile_cache_root(self) -> Optional[Path]:
         settings: Optional[Settings] = self.settings

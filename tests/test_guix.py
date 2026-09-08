@@ -369,7 +369,7 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
         command = env.decorate_shellcmd("hello")
 
         assert command.startswith(
-            f"guix time-machine -C {self.channels_path} -- guix shell"
+            f"guix time-machine -C {self.channels_path} -- shell"
         )
 
     def test_decorate_shellcmd_uses_deprecated_per_rule_channels_file(self) -> None:
@@ -413,7 +413,7 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
         command = env.decorate_shellcmd("hello")
 
         assert command.startswith(
-            f"guix time-machine -C {other_channels_path} -- guix shell"
+            f"guix time-machine -C {other_channels_path} -- shell"
         )
 
     def test_settings_channels_file_deprecated_alias_still_works(self) -> None:
@@ -449,7 +449,7 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
         command = env.decorate_shellcmd("hello")
 
         assert command.startswith(
-            f"guix time-machine -C {self.channels_path} -- guix shell"
+            f"guix time-machine -C {self.channels_path} -- shell"
         )
 
     def test_record_hash_excludes_channels_when_no_time_machine(self) -> None:
@@ -522,7 +522,7 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
         command = env.decorate_shellcmd("hello")
 
         assert command.startswith(
-            f"guix time-machine --commit={self.sample_commit} -- guix shell"
+            f"guix time-machine --commit={self.sample_commit} -- shell"
         )
 
     def test_decorate_shellcmd_combines_url_and_branch(self) -> None:
@@ -537,7 +537,7 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
 
         assert command.startswith(
             f"guix time-machine --url={self.sample_url} "
-            f"--branch={self.sample_branch} -- guix shell"
+            f"--branch={self.sample_branch} -- shell"
         )
 
     def test_decorate_shellcmd_per_field_settings_override(self) -> None:
@@ -605,7 +605,7 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
 
         command = env.decorate_shellcmd("hello")
 
-        assert command.startswith(f"guix time-machine -C {swhid} -- guix shell")
+        assert command.startswith(f"guix time-machine -C {swhid} -- shell")
 
     def test_record_hash_handles_swhid_channels_without_filesystem_access(
         self, monkeypatch
@@ -1151,7 +1151,7 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
         env.decorate_shellcmd("hello")
 
         assert calls[0].startswith(
-            f"guix time-machine --commit={self.sample_commit} -- guix package -p "
+            f"guix time-machine --commit={self.sample_commit} -- package -p "
         )
 
     def test_profile_cache_no_time_machine_realize_command(
