@@ -121,20 +121,22 @@ commands and support for highlighting embedded R code.")
     (propagated-inputs (list python-snakemake-interface-common))))
 
 (define-public python-snakemake-interface-software-deployment-plugins
-  (package/inherit guix:python-snakemake-interface-software-deployment-plugins
-    (name "python-snakemake-interface-software-deployment-plugins")
-    (version "0.19.1")
-    (source
-     (origin
-       (method git-fetch)
-       (uri (git-reference
-              (url (string-append "https://github.com/snakemake/"
-                                  "snakemake-interface-software-deployment-plugins"))
-              (commit (string-append "v" version))))
-       (file-name (git-file-name name version))
-       (sha256
-        (base32 "0axs0f75kgl5bjnszl0dcz1pnxnfl1vihsjwc89ra2l7gfdx9757"))))
-    (propagated-inputs (list python-snakemake-interface-common))))
+  ((package-input-rewriting/spec
+    `(("python-snakemake-interface-common" .
+       ,(const python-snakemake-interface-common))))
+   (package/inherit guix:python-snakemake-interface-software-deployment-plugins
+     (name "python-snakemake-interface-software-deployment-plugins")
+     (version "0.19.1")
+     (source
+      (origin
+        (method git-fetch)
+        (uri (git-reference
+               (url (string-append "https://github.com/snakemake/"
+                                   "snakemake-interface-software-deployment-plugins"))
+               (commit (string-append "v" version))))
+        (file-name (git-file-name name version))
+        (sha256
+         (base32 "0axs0f75kgl5bjnszl0dcz1pnxnfl1vihsjwc89ra2l7gfdx9757")))))))
 
 (define-public snakemake-with-software-deployment
   ;; Commit of branch feat/software-deployment-plugins
