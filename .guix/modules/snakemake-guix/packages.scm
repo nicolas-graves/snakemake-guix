@@ -184,7 +184,7 @@ commands and support for highlighting embedded R code.")
 (define-public python-snakemake-software-deployment-plugin-guix
   (package
     (name "python-snakemake-software-deployment-plugin-guix")
-    (version "0.3.3")
+    (version "0.3.4")
     (source
      (origin
        (method git-fetch)
@@ -193,7 +193,7 @@ commands and support for highlighting embedded R code.")
               (commit version)))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "17gvzjkl7n1isgz9r73chpyn70aq2ipnibc70lz2awq0cmy9mhkx"))))
+        (base32 "0s264sahlr7jqiw47pxfv0p15d9fh6lhls54hwh1jji8hlzmkwm9"))))
     (build-system pyproject-build-system)
     (arguments
      ;; XXX: We would need access to builds with the guile daemon to be able
