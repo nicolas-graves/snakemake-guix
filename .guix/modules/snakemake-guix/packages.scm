@@ -144,7 +144,7 @@ commands and support for highlighting embedded R code.")
        ,(const python-snakemake-interface-common))))
    (package/inherit guix:python-snakemake-storage-plugin-http)))
 
-(define-public snakemake-with-software-deployment
+(define-public snakemake
   ;; Commit merging branch feat/software-deployment-plugins
   (let ((commit "91763d644db0a6051c40014fa8ffad340f7d39a0")
         (revision "2"))
@@ -202,7 +202,7 @@ commands and support for highlighting embedded R code.")
     (native-inputs
      (list guix python-flit-core python-pytest))
     (propagated-inputs
-     (list snakemake-with-software-deployment
+     (list snakemake
            python-snakemake-interface-software-deployment-plugins))
     (home-page "https://github.com/nicolas-graves/snakemake-guix")
     (synopsis "Run Snakemake within a Guix shell or time-machine")
