@@ -145,16 +145,16 @@ commands and support for highlighting embedded R code.")
    (package/inherit guix:python-snakemake-storage-plugin-http)))
 
 (define-public snakemake-with-software-deployment
-  ;; Commit of branch feat/software-deployment-plugins
-  (let ((commit "d1c87fcb9016b27843d7f96fcae699e9d303a705")
-        (revision "1"))
+  ;; Commit merging branch feat/software-deployment-plugins
+  (let ((commit "91763d644db0a6051c40014fa8ffad340f7d39a0")
+        (revision "2"))
     ((package-input-rewriting/spec
       `(("python-snakemake-interface-common" .
          ,(const python-snakemake-interface-common))))
      (package/inherit guix:snakemake
        (name "snakemake")
        ;; Version of last common commit with master branch
-       (version (git-version "9.26.1" revision commit))
+       (version (git-version "9.27.0" revision commit))
        (source
         (origin
           (method git-fetch)
@@ -163,7 +163,7 @@ commands and support for highlighting embedded R code.")
                  (commit commit)))
           (file-name (git-file-name name version))
           (sha256
-           (base32 "082ywypqx9k76jra8zx09krwn1qjscpx8p2js0nymvj5xxdjxs8b"))
+           (base32 "0iby47d69m69gd3kdqnds25dws5jir4459w0gmyihd7665805vv8"))
           (patches
            (snakemake-guix-patches "snakemake-4009.patch"
                                    "snakemake-allow-without-conda.patch"
