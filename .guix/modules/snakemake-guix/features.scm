@@ -14,7 +14,7 @@
 
 (define* (feature-snakemake
           #:key
-          (snakemake snakemake-with-software-deployment)
+          (snakemake snakemake)
           (emacs-snakemake-mode emacs-snakemake-mode)
           (snakemake-plugins
            (list python-snakemake-software-deployment-plugin-guix)))
