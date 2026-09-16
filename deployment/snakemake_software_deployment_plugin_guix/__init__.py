@@ -2,6 +2,10 @@ from snakemake_software_deployment_plugin_guix.common import common_settings
 from snakemake_software_deployment_plugin_guix.guixenvspec import EnvSpec
 from snakemake_software_deployment_plugin_guix.guixenv import Env
 from snakemake_software_deployment_plugin_guix.settings import Settings
+from snakemake_software_deployment_plugin_guix.realized import (
+    GuixPin,
+    RealizedEnvironment,
+)
 
 EnvBase = Env
 EnvSpecBase = EnvSpec

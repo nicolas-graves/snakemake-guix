@@ -868,6 +868,70 @@ class TestGuixDeployment(TestSoftwareDeploymentBase):
         assert len(calls) == 1
         assert second_command == first_command
 
+    def test_realize_returns_public_immutable_contract(self, monkeypatch) -> None:
+        monkeypatch.setattr(guixenv, "shell_supports_profile_flag", lambda: True)
+        calls = []
+        self._install_fake_guix_package(monkeypatch, calls=calls)
+        cache_root = self.temp_dir / "cache with spaces"
+        env = self._make_env(
+            EnvSpec(packages=["hello"]),
+            settings=Settings(
+                profile_cache=str(cache_root),
+                no_time_machine=True,
+                container=True,
+                additional_args=["--preserve=^HOME$"],
+            ),
+        )
+
+        realized = env.realize()
+
+        assert len(calls) == 1
+        assert realized.digest == env.hash()
+        assert realized.profile_store_path.is_absolute()
+        assert realized.profile_store_path == (
+            cache_root / env.hash() / "profile"
+        ).resolve()
+        assert len(realized.manifest_digest) == 64
+        assert realized.guix_pin is None
+        assert realized.container is True
+        assert realized.additional_args == ("--preserve=^HOME$",)
+        command = "printf '%s' hello"
+        assert realized.decorate(command) == (
+            "guix shell --container '--preserve=^HOME$' -p "
+            f"{shlex.quote(str(realized.profile_store_path))} -- bash -c "
+            f"{shlex.quote(command)}"
+        )
+
+    def test_realize_without_configured_cache_uses_deployment_prefix(
+        self, monkeypatch
+    ) -> None:
+        self._install_fake_guix_package(monkeypatch)
+        env = self._make_env(
+            EnvSpec(packages=["hello"]), settings=Settings(no_time_machine=True)
+        )
+
+        realized = env.realize()
+
+        assert realized.profile_store_path == (
+            env._deployment_prefix
+            / "realized-profiles"
+            / env.hash()
+            / "profile"
+        ).resolve()
+
+    def test_realize_exposes_effective_pin(self, monkeypatch) -> None:
+        self._install_fake_guix_package(monkeypatch)
+        env = self._make_env(
+            EnvSpec(packages=["hello"], commit=self.sample_commit),
+            settings=Settings(profile_cache=str(self.temp_dir / "cache")),
+        )
+
+        realized = env.realize()
+
+        assert realized.guix_pin is not None
+        assert realized.guix_pin.kind == "refs"
+        assert realized.guix_pin.value == (None, self.sample_commit, None)
+
     def test_profile_cache_identical_hash_selects_same_profile(
         self, monkeypatch
     ) -> None:

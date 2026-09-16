@@ -1,4 +1,5 @@
 import os
+import hashlib
 import shlex
 import shutil
 import subprocess as sp
@@ -27,6 +28,10 @@ from snakemake_software_deployment_plugin_guix.common import (
 )
 from snakemake_software_deployment_plugin_guix.guixenvspec import EnvSpec
 from snakemake_software_deployment_plugin_guix.settings import Settings
+from snakemake_software_deployment_plugin_guix.realized import (
+    GuixPin,
+    RealizedEnvironment,
+)
 
 _LOCK_POLL_INTERVAL_SECONDS = 0.2
 
@@ -43,6 +48,10 @@ def _software_name(item) -> str:
 
 class Env(EnvBase):
     spec: EnvSpec
+
+    def __init__(self, *args, envvars=None, **kwargs) -> None:
+        """Accept both pre-0.19 and 0.19+ deployment interface callers."""
+        super().__init__(*args, envvars=set() if envvars is None else envvars, **kwargs)
 
     def __post_init__(self) -> None:
         self._temp_manifest_file: Optional[str] = None
@@ -242,6 +251,46 @@ class Env(EnvBase):
             return self._decorate_shellcmd_cached(cmd, cache_root)
         return self._decorate_shellcmd_uncached(cmd)
 
+    def realize(self) -> RealizedEnvironment:
+        """Realize and describe this environment for an executor.
+
+        This is the public boundary for executors.  It intentionally avoids
+        exposing cache layout, temporary manifests, or decorated local shell
+        strings.
+        """
+        cache_root = self._effective_profile_cache_root()
+        if cache_root is None:
+            cache_root = (self._deployment_prefix / "realized-profiles").resolve()
+        profile_path = self._ensure_cached_profile(cache_root)
+        store_path = profile_path.resolve(strict=True)
+        settings: Optional[Settings] = self.settings
+        pin = self._time_machine_pin() if self._use_time_machine() else None
+        return RealizedEnvironment(
+            digest=self.hash(),
+            profile_store_path=store_path,
+            manifest_digest=self._effective_manifest_digest(),
+            guix_pin=None if pin is None else GuixPin(*pin),
+            container=settings.container if settings is not None else False,
+            additional_args=tuple(settings.additional_args or ())
+            if settings is not None
+            else (),
+        )
+
+    def _effective_manifest_digest(self) -> str:
+        digest = hashlib.sha256()
+        for manifest_file in self._manifest_sources():
+            with open(self._manifest_source_path(manifest_file), "rb") as manifest:
+                digest.update(b"manifest:")
+                digest.update(manifest.read())
+                digest.update(b"\0")
+        for package in self.spec.packages:
+            digest.update(b"package:")
+            digest.update(package.encode())
+            digest.update(b"\0")
+        if not self._manifest_sources() and not self.spec.packages:
+            digest.update(b"empty-manifest")
+        return digest.hexdigest()
+
     def _decorate_shellcmd_uncached(self, cmd: str) -> str:
         uses_generated_manifest = self._uses_generated_manifest()
         manifest = (
@@ -307,13 +356,13 @@ class Env(EnvBase):
         marker_path = env_dir / ".complete"
         lock_path = env_dir / ".lock"
 
-        if marker_path.exists():
+        if self._profile_complete(profile_path, marker_path):
             return profile_path
 
         env_dir.mkdir(parents=True, exist_ok=True)
 
         while True:
-            if marker_path.exists():
+            if self._profile_complete(profile_path, marker_path):
                 return profile_path
             try:
                 os.mkdir(lock_path)
@@ -322,14 +371,27 @@ class Env(EnvBase):
                 continue
 
             try:
-                if marker_path.exists():
+                if self._profile_complete(profile_path, marker_path):
                     return profile_path
                 self._cleanup_stale_temp_profiles(env_dir)
                 self._realize_profile(env_dir, profile_path)
-                marker_path.touch()
+                marker_tmp = env_dir / f".complete-{uuid.uuid4().hex}.tmp"
+                marker_tmp.touch()
+                os.replace(marker_tmp, marker_path)
                 return profile_path
             finally:
                 shutil.rmtree(lock_path, ignore_errors=True)
+
+    @staticmethod
+    def _profile_complete(profile_path: Path, marker_path: Path) -> bool:
+        if not marker_path.exists():
+            return False
+        try:
+            profile_path.resolve(strict=True)
+        except (OSError, RuntimeError):
+            marker_path.unlink(missing_ok=True)
+            return False
+        return True
 
     @staticmethod
     def _remove_profile_artifacts(profile_path: Path) -> None:
