@@ -8,7 +8,11 @@ build:
 	.guix-profile/guix/bin/guix build -f guix.scm -K
 
 install:
-	.guix-profile/guix/bin/guix install -L .guix/modules python-snakemake-deployment-plugin-guix python-wrapper
+	.guix-profile/guix/bin/guix install -L .guix/modules snakemake-guix-remote-execution
+
+test:
+	pytest -q deployment/tests
+	pytest -q -c executor/pyproject.toml executor/tests
 
 development-shell:
 	guix shell -D --file=guix.scm

@@ -17,6 +17,8 @@
   #:use-module (gnu packages package-management)
   #:use-module (gnu packages python-build)
   #:use-module ((gnu packages python-science) #:prefix guix:)
+  #:use-module (gnu packages rsync)
+  #:use-module (gnu packages ssh)
   #:use-module (ice-9 match)
   #:use-module (srfi srfi-34)
   #:export (snakemake-guix-patches))
@@ -138,12 +140,6 @@ commands and support for highlighting embedded R code.")
         (sha256
          (base32 "0axs0f75kgl5bjnszl0dcz1pnxnfl1vihsjwc89ra2l7gfdx9757")))))))
 
-(define-public python-snakemake-storage-plugin-http
-  ((package-input-rewriting/spec
-    `(("python-snakemake-interface-common" .
-       ,(const python-snakemake-interface-common))))
-   (package/inherit guix:python-snakemake-storage-plugin-http)))
-
 (define-public snakemake
   ;; Commit merging branch feat/software-deployment-plugins
   (let ((commit "91763d644db0a6051c40014fa8ffad340f7d39a0")
@@ -184,21 +180,28 @@ commands and support for highlighting embedded R code.")
 (define-public python-snakemake-software-deployment-plugin-guix
   (package
     (name "python-snakemake-software-deployment-plugin-guix")
-    (version "0.3.4")
+    (version "0.4.0")
     (source
      (origin
        (method git-fetch)
        (uri (git-reference
               (url "https://github.com/nicolas-graves/snakemake-guix")
-              (commit version)))
+              (commit (string-append
+                       "snakemake-software-deployment-plugin-guix-"
+                       version))))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "0s264sahlr7jqiw47pxfv0p15d9fh6lhls54hwh1jji8hlzmkwm9"))))
+        (base32 "00y0vzz9fznbxmlg7lkdvmlapldpn59l2i39gbw8jjx8hmcq2j6n"))))
     (build-system pyproject-build-system)
     (arguments
      ;; XXX: We would need access to builds with the guile daemon to be able
      ;; to run those.
-     (list #:tests? #f))
+     (list
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'enter-deployment-source
+            (lambda _ (chdir "deployment"))))))
     (native-inputs
      (list guix python-flit-core python-pytest))
     (propagated-inputs
@@ -210,4 +213,53 @@ commands and support for highlighting embedded R code.")
 using Guix command-line calls.")
     (license license:gpl3+)))
 
-python-snakemake-software-deployment-plugin-guix
+(define-public python-snakemake-executor-plugin-guix-ssh
+  (package
+    (name "python-snakemake-executor-plugin-guix-ssh")
+    (version "0.1.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/nicolas-graves/snakemake-guix")
+              (commit (string-append
+                       "snakemake-executor-plugin-guix-ssh-"
+                       version))))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "0ndvl9wwnrlqwin49bi6fsqjfanv0zpx4z0wki7fl281861g00bg"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'enter-executor-source
+            (lambda _ (chdir "executor"))))))
+    (native-inputs (list python-hatchling python-pytest))
+    (propagated-inputs
+     (list guix
+           openssh
+           rsync
+           snakemake
+           guix:python-snakemake-interface-executor-plugins
+           python-snakemake-interface-common
+           python-snakemake-software-deployment-plugin-guix))
+    (home-page "https://github.com/nicolas-graves/snakemake-guix")
+    (synopsis "Execute Snakemake jobs over SSH with immutable Guix profiles")
+    (description "This Snakemake executor plugin transfers Guix closures and job
+files to independent SSH workers while leaving DAG and provenance ownership with
+the local Snakemake controller.")
+    (license license:gpl3+)))
+
+(define-public snakemake-guix-remote-execution
+  (package
+  (inherit snakemake)
+  (name "snakemake-guix-remote-execution")
+  (propagated-inputs
+   (modify-inputs (package-propagated-inputs snakemake)
+     (append python-snakemake-software-deployment-plugin-guix
+             python-snakemake-executor-plugin-guix-ssh
+             (specification->package
+              "python-snakemake-storage-plugin-http"))))))
+
+snakemake-guix-remote-execution
