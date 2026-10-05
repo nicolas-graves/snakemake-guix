@@ -21,6 +21,7 @@
   #:use-module ((gnu packages python-science) #:prefix guix:)
   #:use-module (gnu packages rsync)
   #:use-module (gnu packages ssh)
+  #:use-module (gnu packages version-control)
   #:use-module (ice-9 ftw)
   #:use-module (ice-9 match)
   #:use-module (srfi srfi-34)
@@ -270,6 +271,41 @@ the local Snakemake controller.")
 transfers Guix closures through guix-ssh, retrieves job results, and removes
 the instance when the run finishes. Its separate image maintenance command
 publishes and reuses immutable private Glance images.")
+    (license license:gpl3+)))
+
+(define-public python-snakemake-report-plugin-forge-dag
+  (package
+    (name "python-snakemake-report-plugin-forge-dag")
+    (version "0.1.0")
+    (source
+     (origin
+       (method git-fetch)
+       (uri (git-reference
+              (url "https://github.com/nicolas-graves/snakemake-report-plugin-forge-dag")
+              (commit "1fb51320665850ccc9256448d60380a69d0e3ca2")))
+       (file-name (git-file-name name version))
+       (sha256
+        (base32 "18x9pz1inj1kav7rli00gfkawmwhwgxjybpgc0jkz1xgmc153h06"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-before 'check 'set-home
+            ;; Snakemake creates its source cache under $HOME.
+            (lambda _ (setenv "HOME" "/tmp"))))))
+    ;; The tests run Snakemake on a workflow in a temporary git repository;
+    ;; the SVG test is skipped without graphviz.
+    (native-inputs (list git-minimal python-pytest python-setuptools snakemake))
+    (propagated-inputs
+     (list python-snakemake-interface-common
+           python-snakemake-interface-report-plugins))
+    (home-page "https://github.com/nicolas-graves/snakemake-report-plugin-forge-dag")
+    (synopsis "Snakemake report plugin linking DAG nodes to rule sources")
+    (description "This Snakemake report plugin draws the job DAG, as
+@command{snakemake --dag} does, with each node linked to the line defining its
+rule on the git forge hosting it, including rules from included files and from
+modules kept in git submodules.")
     (license license:gpl3+)))
 
 (define-public snakemake-guix-remote-execution
