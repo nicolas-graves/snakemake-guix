@@ -1,4 +1,7 @@
 .guix-profile
+.claude
+.codegraph
+.nrepl-port
 **/__pycache__
 example/results
 example/.snakemake
