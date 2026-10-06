@@ -177,6 +177,7 @@ class OpenStackHosts:
             raise
 
     def _preflight(self, cloud):
+        self.ssh_config.preflight(self.settings.identity_file)
         flavor = self._flavor or cloud.find_flavor(self.settings.flavor)
         if flavor is None:
             raise ValueError(f"OpenStack flavor {self.settings.flavor!r} was not found")

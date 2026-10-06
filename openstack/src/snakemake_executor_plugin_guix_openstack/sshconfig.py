@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import subprocess
 import tempfile
+from uuid import uuid4
 
 
 HOSTKEY_BEGIN = "SGO-HOSTKEY-BEGIN"
@@ -52,6 +54,32 @@ class SSHConfig:
         blocks = [block.strip() for block in old.split("\n\n") if block.strip()]
         blocks = [block for block in blocks if not block.splitlines()[0].startswith(f"Host {alias}")]
         self._atomic_write(self.config_path, "\n\n".join([*blocks, entry.rstrip()]) + "\n")
+
+    def preflight(self, identity_file: str) -> None:
+        """Ensure Guix copy can resolve the generated alias before renting a VM."""
+        alias = f"sgo-preflight-{uuid4().hex}"
+        address = "192.0.2.1"
+        # The key is never used to connect; ssh -G only reads configuration.
+        key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        try:
+            self.add(alias, address, identity_file, key)
+            result = subprocess.run(["ssh", "-G", alias], capture_output=True, text=True)
+            if result.returncode:
+                raise ValueError(f"cannot inspect generated SSH alias: {result.stderr.strip()}")
+            options = dict(line.split(None, 1) for line in result.stdout.splitlines() if " " in line)
+            identity = str(Path(identity_file).expanduser())
+            identities = [line.split(None, 1)[1] for line in result.stdout.splitlines()
+                          if line.startswith("identityfile ")]
+            if (options.get("hostname") != address
+                    or options.get("user") != "root"
+                    or identity not in identities
+                    or str(self.known_hosts_path) not in options.get("userknownhostsfile", "")):
+                raise ValueError(
+                    f"generated OpenStack SSH aliases are not visible to guix copy; "
+                    f"add 'Include {self.config_path}' before any Host blocks in ~/.ssh/config"
+                )
+        finally:
+            self.remove(alias)
 
     def remove(self, alias: str) -> None:
         address = None
