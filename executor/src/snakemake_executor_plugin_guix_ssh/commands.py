@@ -46,23 +46,26 @@ class Commands:
             host.hostname,
         ]
 
-    def run(self, argv: list[str], **kwargs) -> sp.CompletedProcess:
+    def run(self, argv: list[str], *, retries: int | None = None, **kwargs) -> sp.CompletedProcess:
+        attempts = self.retries if retries is None else retries
+        if attempts < 1:
+            raise ValueError("retries must be positive")
         last = None
-        for _ in range(self.retries):
+        for _ in range(attempts):
             last = sp.run(argv, capture_output=True, text=True, **kwargs)
             if last.returncode == 0:
                 return last
         assert last is not None
         raise CommandError(
-            f"command failed after {self.retries} attempt(s): "
+            f"command failed after {attempts} attempt(s): "
             f"{shlex.join(argv)}\n{last.stderr}"
         )
 
-    def ssh(self, host: Host, script: str) -> sp.CompletedProcess:
+    def ssh(self, host: Host, script: str, *, retries: int | None = None) -> sp.CompletedProcess:
         # OpenSSH concatenates remote argv into shell text, so pass one safely
         # quoted remote command instead of separate `bash -c` arguments.
         remote_command = shlex.join(["bash", "-c", script])
-        return self.run(["ssh", *self.ssh_args(host), "--", remote_command])
+        return self.run(["ssh", *self.ssh_args(host), "--", remote_command], retries=retries)
 
     def preflight(self, host: Host) -> None:
         for executable in ("ssh", "rsync", "guix"):

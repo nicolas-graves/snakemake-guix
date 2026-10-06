@@ -19,8 +19,8 @@ class RecordingCommands:
     def guix_copy(self, host, path):
         self.copies.append((host, path))
 
-    def ssh(self, host, script):
-        self.ssh_calls.append((host, script))
+    def ssh(self, host, script, *, retries=None):
+        self.ssh_calls.append((host, script, retries))
         return sp.CompletedProcess([], 0, stdout="RUNNING\n", stderr="")
 
     def rsync(self, host, sources, destination, *, relative=True):
@@ -225,6 +225,18 @@ def test_cancellation_targets_remote_process_group(host):
     remote = RemoteJob(host, PurePosixPath("/remote/run/7"), "digest")
     Lifecycle(commands).cancel(remote)
     assert "kill -TERM -- -$(cat pid)" in commands.ssh_calls[0][1]
+
+
+def test_launch_uses_one_attempt_and_writes_pid_in_job_directory(host):
+    commands = RecordingCommands()
+    remote = RemoteJob(host, PurePosixPath("/remote/run/7"), "digest")
+    Lifecycle(commands).launch(remote, "sleep 1")
+    _, script, retries = commands.ssh_calls[0]
+    assert retries == 1
+    assert "cd /remote/run/7 &&" in script
+    assert "{ nohup setsid bash -c" in script
+    assert 'printf %s "$$" > pid' in script
+    assert "& for attempt in" in script
 
 
 def test_status_is_polled_without_persistent_connection(host):

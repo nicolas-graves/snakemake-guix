@@ -36,6 +36,8 @@ class Lifecycle:
             {"environment_digest": job.environment_digest}, separators=(",", ":")
         )
         inner = (
+            "printf %s \"$$\" > pid; "
+            "trap 'exit 143' TERM INT; "
             "trap 'code=$?; printf %s \"$code\" > .exit.tmp; "
             "mv .exit.tmp exit' EXIT; " + command
         )
@@ -43,10 +45,13 @@ class Lifecycle:
             f"mkdir -p {directory} && cd {directory} && "
             f"printf %s {shlex.quote(metadata)} > metadata.json && "
             f"printf %s {shlex.quote(command)} > command && "
-            f"nohup setsid bash -c {shlex.quote(inner)} >stdout 2>stderr < /dev/null & "
-            "echo $! > pid"
+            f"{{ nohup setsid bash -c {shlex.quote(inner)} >stdout 2>stderr < /dev/null & "
+            "for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do "
+            "test -s pid && break; sleep 0.1; done; test -s pid; }"
         )
-        self.commands.ssh(job.host, script)
+        # A lost SSH reply may occur after the guest process starts.  Retrying
+        # this command would launch the same job twice and overwrite its logs.
+        self.commands.ssh(job.host, script, retries=1)
 
     def status(self, job: RemoteJob) -> tuple[Status, str]:
         directory = shlex.quote(str(job.directory))
