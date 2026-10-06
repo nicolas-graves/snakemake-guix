@@ -1,0 +1,10 @@
+(channel
+ (version 0)
+ (url "https://github.com/nicolas-graves/snakemake-executor-plugin-guix-openstack")
+ (directory ".guix/modules")
+ (dependencies
+  (list
+   (channel
+    (name 'snakemake-guix)
+    (url "https://github.com/nicolas-graves/snakemake-guix")
+    (branch "master")))))
