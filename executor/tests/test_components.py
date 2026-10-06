@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from snakemake_executor_plugin_guix_ssh.commands import Commands
+from snakemake_executor_plugin_guix_ssh.commands import CommandError, Commands
 from snakemake_executor_plugin_guix_ssh.lifecycle import Lifecycle, RemoteJob, Status
 from snakemake_executor_plugin_guix_ssh.model import Capacity, Host
 from snakemake_executor_plugin_guix_ssh.transport import Transport
@@ -54,6 +54,35 @@ def test_ssh_arguments_are_argv_not_shell_text(host):
     ]
 
 
+def test_cloud_host_options_pin_hostname_user_and_known_hosts(host):
+    commands = Commands()
+    commands.set_host_options(
+        host.hostname, address="192.0.2.10", known_hosts="/run/user/1000/known_hosts"
+    )
+
+    assert commands.ssh_args(host) == [
+        "-p", "2222",
+        "-F", "/dev/null",
+        "-o", "HostName=192.0.2.10",
+        "-o", "User=root",
+        "-o", "UserKnownHostsFile=/run/user/1000/known_hosts",
+        "-o", "StrictHostKeyChecking=yes",
+        "worker.example",
+    ]
+    commands.clear_host_options(host.hostname)
+    assert commands.ssh_args(host)[-1] == "worker.example"
+
+
+def test_preflight_rejects_guix_copy_port_mismatch(host, monkeypatch):
+    commands = Commands()
+    monkeypatch.setattr("snakemake_executor_plugin_guix_ssh.commands.shutil.which", lambda _: "/bin/tool")
+    commands.run = lambda argv, **kwargs: sp.CompletedProcess(
+        argv, 0, stdout="hostname worker.example\nuser user\nport 22\n", stderr=""
+    )
+    with pytest.raises(CommandError, match="configure port 2222"):
+        commands.preflight(host)
+
+
 def test_closure_is_deployed_once_per_host_and_digest(host):
     commands = RecordingCommands()
     transport = Transport(commands)
@@ -84,10 +113,62 @@ def test_staging_never_transfers_snakemake_metadata(host):
 
 
 def test_staging_rejects_paths_outside_workflow(host):
-    with pytest.raises(ValueError, match="workflow-relative"):
+    with pytest.raises(ValueError, match="traverses"):
         Transport(RecordingCommands()).stage_inputs(
             host, PurePosixPath("/remote/run/1"), ["../secret"]
         )
+
+
+def test_absolute_paths_under_working_directory_map_to_relative_paths(host, tmp_path):
+    source = tmp_path / "inputs" / "data.txt"
+    source.parent.mkdir()
+    source.write_text("data")
+    commands = RecordingCommands()
+    transport = Transport(commands)
+    transport.stage_inputs(host, PurePosixPath("/remote/run/1"), [str(source)], tmp_path)
+    assert commands.rsync_calls[0][1] == [f"{tmp_path}/./inputs/data.txt"]
+    assert transport._safe_paths([str(source)], tmp_path) == ["inputs/data.txt"]
+
+
+def test_failed_second_transfer_does_not_publish_first_output(host, tmp_path):
+    class FailingCommands(RecordingCommands):
+        def rsync(self, host, sources, destination, *, relative=True):
+            if len(self.rsync_calls) == 1:
+                raise RuntimeError("transfer failed")
+            super().rsync(host, sources, destination, relative=relative)
+
+    commands = FailingCommands()
+    transport = Transport(commands)
+    with pytest.raises(RuntimeError, match="transfer failed"):
+        transport.retrieve_outputs(
+            host, PurePosixPath("/remote/run/1"),
+            ["receipt.txt", "manifest.json"], tmp_path,
+        )
+    assert not (tmp_path / "receipt.txt").exists()
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_path_mapping_rejects_absolute_outside_root_and_deduplicates_aliases(tmp_path):
+    inside = tmp_path / "inside"
+    inside.write_text("value")
+    with pytest.raises(ValueError, match="outside working directory"):
+        Transport._safe_paths([str(tmp_path.parent / "outside")], tmp_path)
+    assert Transport._safe_paths(["inside", str(inside)], tmp_path) == ["inside"]
+
+
+def test_directory_output_replaces_existing_directory(host, tmp_path):
+    class DirectoryCommands(RecordingCommands):
+        def rsync(self, host, sources, destination, *, relative=True):
+            Path(destination).mkdir()
+            (Path(destination) / "new.txt").write_text("new")
+
+    previous = tmp_path / "result"
+    previous.mkdir()
+    (previous / "old.txt").write_text("old")
+    Transport(DirectoryCommands()).retrieve_outputs(
+        host, PurePosixPath("/remote/run/1"), ["result"], tmp_path
+    )
+    assert sorted(path.name for path in previous.iterdir()) == ["new.txt"]
 
 
 def test_output_retrieval_does_not_preserve_remote_absolute_path(host, tmp_path):

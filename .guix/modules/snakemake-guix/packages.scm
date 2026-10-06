@@ -15,10 +15,12 @@
   #:use-module (gnu packages check)
   #:use-module (gnu packages emacs-xyz)
   #:use-module (gnu packages package-management)
+  #:use-module (gnu packages python)
   #:use-module (gnu packages python-build)
   #:use-module ((gnu packages python-science) #:prefix guix:)
   #:use-module (gnu packages rsync)
   #:use-module (gnu packages ssh)
+  #:use-module (ice-9 ftw)
   #:use-module (ice-9 match)
   #:use-module (srfi srfi-34)
   #:export (snakemake-guix-patches))
@@ -51,6 +53,12 @@
               (string-append directory "/snakemake-guix/patches")
               directory))
         %load-path)))
+
+(define %snakemake-guix-source-root
+  (canonicalize-path
+   (string-append
+    (dirname (search-path %load-path "snakemake-guix/packages.scm"))
+    "/../../..")))
 
 (define (search-snakemake-guix-patch file-name)
   (or (search-path (%snakemake-guix-patch-path) file-name)
@@ -216,28 +224,16 @@ using Guix command-line calls.")
 (define-public python-snakemake-executor-plugin-guix-ssh
   (package
     (name "python-snakemake-executor-plugin-guix-ssh")
-    (version "0.1.0")
+    (version "0.2.0")
     (source
-     (origin
-       (method git-fetch)
-       (uri (git-reference
-              (url "https://github.com/nicolas-graves/snakemake-guix")
-              (commit (string-append
-                       "snakemake-executor-plugin-guix-ssh-"
-                       version))))
-       (file-name (git-file-name name version))
-       (sha256
-        (base32 "0ndvl9wwnrlqwin49bi6fsqjfanv0zpx4z0wki7fl281861g00bg"))))
+     (local-file (string-append %snakemake-guix-source-root "/executor")
+                 (git-file-name name version)
+                 #:recursive? #t))
     (build-system pyproject-build-system)
-    (arguments
-     (list
-      #:phases
-      #~(modify-phases %standard-phases
-          (add-after 'unpack 'enter-executor-source
-            (lambda _ (chdir "executor"))))))
     (native-inputs (list python-hatchling python-pytest))
     (propagated-inputs
-     (list guix
+     (list python
+           guix
            openssh
            rsync
            snakemake

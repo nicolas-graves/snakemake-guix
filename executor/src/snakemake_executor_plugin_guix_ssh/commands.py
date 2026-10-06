@@ -1,4 +1,5 @@
 import shlex
+import shutil
 import subprocess as sp
 from pathlib import Path
 from typing import Iterable, Optional
@@ -20,6 +21,19 @@ class Commands:
         self.identity_file = identity_file
         self.extra_ssh_args = shlex.split(ssh_args or "")
         self.retries = retries
+        self._host_options: dict[str, list[str]] = {}
+
+    def set_host_options(self, hostname: str, *, address: str, known_hosts: str) -> None:
+        self._host_options[hostname] = [
+            "-F", "/dev/null",
+            "-o", f"HostName={address}",
+            "-o", "User=root",
+            "-o", f"UserKnownHostsFile={known_hosts}",
+            "-o", "StrictHostKeyChecking=yes",
+        ]
+
+    def clear_host_options(self, hostname: str) -> None:
+        self._host_options.pop(hostname, None)
 
     def ssh_args(self, host: Host) -> list[str]:
         identity = [] if self.identity_file is None else ["-i", self.identity_file]
@@ -28,6 +42,7 @@ class Commands:
             str(host.port),
             *identity,
             *self.extra_ssh_args,
+            *self._host_options.get(host.hostname, []),
             host.hostname,
         ]
 
@@ -48,6 +63,35 @@ class Commands:
         # quoted remote command instead of separate `bash -c` arguments.
         remote_command = shlex.join(["bash", "-c", script])
         return self.run(["ssh", *self.ssh_args(host), "--", remote_command])
+
+    def preflight(self, host: Host) -> None:
+        for executable in ("ssh", "rsync", "guix"):
+            if shutil.which(executable) is None:
+                raise CommandError(f"required local executable is unavailable: {executable}")
+        # guix copy resolves the alias through SSH configuration, independently
+        # of the command-line options passed to ssh and rsync.
+        configured = self.run(["ssh", "-G", host.hostname]).stdout
+        options = dict(line.split(None, 1) for line in configured.splitlines() if " " in line)
+        effective = self.run(["ssh", "-G", *self.ssh_args(host)]).stdout
+        effective_options = dict(line.split(None, 1) for line in effective.splitlines() if " " in line)
+        for key in ("hostname", "user", "port"):
+            if options.get(key) != effective_options.get(key):
+                raise CommandError(
+                    f"SSH alias {host.hostname!r} resolves different {key} for guix copy and ssh"
+                )
+        if int(options.get("port", "22")) != host.port:
+            raise CommandError(
+                f"SSH alias {host.hostname!r} must configure port {host.port} "
+                "for guix copy as well as ssh and rsync"
+            )
+        if self.identity_file and self.identity_file not in configured:
+            raise CommandError(
+                f"SSH alias {host.hostname!r} must configure identity file "
+                f"{self.identity_file!r} for guix copy"
+            )
+        self.ssh(host, f"command -v guix >/dev/null && command -v rsync >/dev/null && "
+                       f"test -d {shlex.quote(str(host.workdir))} && "
+                       f"test -w {shlex.quote(str(host.workdir))}")
 
     def guix_copy(self, host: Host, store_path: Path) -> sp.CompletedProcess:
         # `guix copy` accepts an SSH host (and honors ~/.ssh/config), not an
