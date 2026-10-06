@@ -109,6 +109,7 @@ class OpenStackHostsTests(unittest.TestCase):
             controller_host="controller", commands=self.commands, cloud=self.cloud,
             ssh_config=SSHConfig(Path(self.temp.name)), sleep=lambda _: None,
         )
+        self.source.ssh_config.preflight = lambda _identity_file: None
 
     def test_acquire_is_lazy_and_release_deletes_once(self):
         self.assertEqual(self.cloud.servers, [])
