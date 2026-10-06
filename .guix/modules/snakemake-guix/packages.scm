@@ -255,7 +255,7 @@ the local Snakemake controller.")
 (define-public python-snakemake-executor-plugin-guix-openstack
   (package
     (name "python-snakemake-executor-plugin-guix-openstack")
-    (version "0.2.2")
+    (version "0.2.3")
     (source
      (local-file (string-append %snakemake-guix-source-root "/openstack")
                  (git-file-name name version)
