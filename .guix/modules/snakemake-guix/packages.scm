@@ -229,7 +229,7 @@ using Guix command-line calls.")
 (define-public python-snakemake-executor-plugin-guix-ssh
   (package
     (name "python-snakemake-executor-plugin-guix-ssh")
-    (version "0.2.1")
+    (version "0.2.2")
     (source
      (local-file (string-append %snakemake-guix-source-root "/executor")
                  (git-file-name name version)
@@ -255,7 +255,7 @@ the local Snakemake controller.")
 (define-public python-snakemake-executor-plugin-guix-openstack
   (package
     (name "python-snakemake-executor-plugin-guix-openstack")
-    (version "0.2.0")
+    (version "0.2.1")
     (source
      (local-file (string-append %snakemake-guix-source-root "/openstack")
                  (git-file-name name version)
