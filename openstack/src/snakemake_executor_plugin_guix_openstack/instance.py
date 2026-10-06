@@ -193,14 +193,14 @@ class OpenStackHosts:
         limits = cloud.limits()
         absolute = _field(limits, "absolute", limits)
         checks = (
-            ("totalCoresUsed", "maxTotalCores", "vcpus"),
-            ("totalRAMUsed", "maxTotalRAMSize", "ram"),
-            ("totalInstancesUsed", "maxTotalInstances", None),
+            ("total_cores_used", "totalCoresUsed", "max_total_cores", "maxTotalCores", "vcpus"),
+            ("total_ram_used", "totalRAMUsed", "max_total_ram_size", "maxTotalRAMSize", "ram"),
+            ("total_instances_used", "totalInstancesUsed", "max_total_instances", "maxTotalInstances", None),
         )
-        for used_key, max_key, flavor_key in checks:
-            maximum = _field(absolute, max_key)
-            used = _field(absolute, used_key)
-            if maximum is None or used is None:
+        for used_key, old_used_key, max_key, old_max_key, flavor_key in checks:
+            maximum = _field(absolute, max_key, _field(absolute, old_max_key))
+            used = _field(absolute, used_key, _field(absolute, old_used_key))
+            if maximum is None or used is None or int(maximum) < 0:
                 continue
             requested = _field(flavor, flavor_key, 1) if flavor_key else 1
             if int(used) + int(requested) > int(maximum):
@@ -377,6 +377,12 @@ class OpenStackHosts:
 
     def validate_job(self, job) -> None:
         """Check flavor sizing without creating an instance."""
+        required_flavor = job.resources.get("openstack_flavor")
+        if required_flavor and required_flavor != self.settings.flavor:
+            raise ValueError(
+                f"job {job.rule} requires OpenStack flavor {required_flavor!r}, "
+                f"but the profile selects {self.settings.flavor!r}"
+            )
         cloud = self._connection()
         flavor = self._flavor or cloud.find_flavor(self.settings.flavor)
         if flavor is None:

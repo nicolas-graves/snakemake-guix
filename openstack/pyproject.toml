@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "snakemake-executor-plugin-guix-openstack"
-version = "0.2.0"
+version = "0.2.1"
 description = "Run Guix-backed Snakemake jobs on ephemeral OpenStack instances"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,6 +17,7 @@ dependencies = [
 [project.scripts]
 snakemake-guix-openstack-reap = "snakemake_executor_plugin_guix_openstack.reap:main"
 snakemake-guix-openstack-image = "snakemake_executor_plugin_guix_openstack.image:main"
+snakemake-guix-openstack-openrc = "snakemake_executor_plugin_guix_openstack.openrc:main"
 
 [project.entry-points."snakemake.executor_plugins"]
 guix-openstack = "snakemake_executor_plugin_guix_openstack"

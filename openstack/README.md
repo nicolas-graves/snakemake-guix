@@ -37,11 +37,11 @@ The package provides Snakemake, the executor, and its OpenStack SDK dependency.
 Use the workflow profile below when submitting jobs.
 
 ```yaml
-# profiles/ovh-b3-256/config.yaml
+# profiles/ovh-r3-256/config.yaml
 executor: guix-openstack
 jobs: 1
 guix-openstack-rules: [the_big_rule]
-guix-openstack-flavor: b3-256
+guix-openstack-flavor: r3-256
 guix-openstack-image: guix-worker-2026-10-05
 guix-openstack-max-hours: 6
 guix-openstack-identity-file: ~/.ssh/id_guix_worker
@@ -50,11 +50,14 @@ sdm-guix-profile-cache: .snakemake/guix/profiles
 shared-fs-usage: none
 ```
 
-Run `snakemake -n --profile profiles/ovh-b3-256` first and inspect the jobs
+Run `snakemake -n --profile profiles/ovh-r3-256` first and inspect the jobs
 that would run. Use Snakemake's `--allowed-rules` as an additional DAG-level
 guard when appropriate. This executor has its own required
 `guix-openstack-rules` allowlist because the executor sees jobs after they have
 been scheduled and a stale upstream job can otherwise incur cloud charges.
+An individual rule can also declare `resources: openstack_flavor="r3-256"`;
+the executor rejects a profile that selects a different flavor before
+creating a worker.
 
 OpenStack credentials stay outside the profile. Use the usual `OS_*` variables
 from an OpenStack `openrc`, an application credential, or an entry in
@@ -66,7 +69,8 @@ password prompt still works, and writes the record with mode `0600` to the
 project-local, Git-ignored `.secrets/` directory:
 
 ```sh
-guix shell python -- python3 openstack/scripts/openrc_to_json.py \
+guix shell python-snakemake-executor-plugin-guix-openstack -- \
+  snakemake-guix-openstack-openrc \
   ~/.local/share/downloads/openrc.sh --output .secrets/openstack-credentials.json
 ```
 
@@ -109,8 +113,8 @@ The command prints the Glance image ID on stdout. Put that exact ID in
 `guix-openstack-image`; keep the selected OpenStack region aligned with the
 image's region (for example, `OS_REGION_NAME=GRA11`). The executor never
 uploads an image during a workflow run.
-The `ensure` command has fake-cloud test coverage; a live upload through this
-command has not yet been verified.
+The `ensure` command has also been used to publish and verify an active,
+private image in GRA11.
 
 See [`worker.scm`](../.guix/modules/guix-openstack/worker.scm) for the OS
 procedure.

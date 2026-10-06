@@ -18,7 +18,7 @@ class Commands:
         ssh_args: Optional[str] = None,
         retries: int = 3,
     ) -> None:
-        self.identity_file = identity_file
+        self.identity_file = str(Path(identity_file).expanduser()) if identity_file else None
         self.extra_ssh_args = shlex.split(ssh_args or "")
         self.retries = retries
         self._host_options: dict[str, list[str]] = {}
