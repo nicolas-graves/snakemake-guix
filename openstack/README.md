@@ -62,7 +62,7 @@ password prompt still works, and writes the record with mode `0600` to the
 project-local, Git-ignored `.secrets/` directory:
 
 ```sh
-guix shell python -- python3 scripts/openrc_to_json.py \
+guix shell python -- python3 openstack/scripts/openrc_to_json.py \
   ~/.local/share/downloads/openrc.sh --output .secrets/openstack-credentials.json
 ```
 
@@ -93,7 +93,6 @@ the executor profile to the returned ID after validation.
 ```sh
 image=$(guix system image \
   -L .guix/modules \
-  -L ../snakemake-guix/.guix/modules \
   --image-type=qcow2 --image-size=14G worker-os.scm)
 guix shell python-snakemake-executor-plugin-guix-openstack -- \
   snakemake-guix-openstack-image ensure --file "$image" \
@@ -105,7 +104,7 @@ The command prints the Glance image ID on stdout. Put that exact ID in
 image's region (for example, `OS_REGION_NAME=GRA11`). The executor never
 uploads an image during a workflow run.
 
-See [`worker.scm`](.guix/modules/guix-openstack/worker.scm) for the OS
+See [`worker.scm`](../.guix/modules/guix-openstack/worker.scm) for the OS
 procedure.
 
 ## SSH trust
@@ -140,7 +139,7 @@ deletion. For example, add this service extension to the host's existing
 (use-modules (guix)
              (gnu services)
              (gnu services mcron)
-             (guix-openstack packages))
+             (snakemake-guix packages))
 
 (simple-service
  'sgo-reaper-jobs
@@ -161,32 +160,28 @@ entry; no secret belongs in the system configuration or job expression.
 
 ## Development
 
-For local development, use the sibling `snakemake-guix` checkout for the
-executor and deployment-plugin sources. From this repository root, run the
-Guix package build with:
+From the repository root, build the channel package with:
 
 ```sh
-guix build -L .guix/modules -L ../snakemake-guix/.guix/modules -f guix.scm
+guix build -L .guix/modules -f guix.scm
 ```
 
-The package definitions take filtered source snapshots from the two checkouts.
-The published `snakemake-executor-plugin-guix-ssh-0.2.0` tag also makes the
-dependency available through this channel's `snakemake-guix` dependency. To
-confirm Snakemake discovers the package-built executor, run:
+The channel package builds both executors from this checkout. To confirm
+Snakemake discovers the package-built executor, run:
 
 ```sh
-guix shell -L .guix/modules -L ../snakemake-guix/.guix/modules \
+guix shell -L .guix/modules \
   -f guix.scm -- snakemake --executor guix-openstack --help
 ```
 
 Run the fake-cloud tests in a Guix shell with:
 
 ```sh
-guix shell -L ../snakemake-guix/.guix/modules \
+guix shell -L .guix/modules \
   python python-pytest python-openstacksdk \
   python-snakemake-interface-common \
   python-snakemake-interface-executor-plugins \
   python-snakemake-software-deployment-plugin-guix -- \
-  env PYTHONPATH=src:../snakemake-guix/executor/src:../snakemake-guix/deployment/src \
-  pytest -q
+  env PYTHONPATH=openstack/src:executor/src:deployment/src \
+  pytest -q openstack/tests
 ```

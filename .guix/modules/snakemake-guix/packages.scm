@@ -253,16 +253,9 @@ the local Snakemake controller.")
     (name "python-snakemake-executor-plugin-guix-openstack")
     (version "0.2.0")
     (source
-     (origin
-       (method git-fetch)
-       (uri (git-reference
-              (url "https://github.com/nicolas-graves/snakemake-executor-plugin-guix-openstack")
-              (commit (string-append
-                       "snakemake-executor-plugin-guix-openstack-"
-                       version))))
-       (file-name (git-file-name name version))
-       (sha256
-        (base32 "1svzkwk6hwi5ypvi8y2cqaqqz4bwp3f55qm28rd03056vp5vz4y1"))))
+     (local-file (string-append %snakemake-guix-source-root "/openstack")
+                 (git-file-name name version)
+                 #:recursive? #t))
     (build-system pyproject-build-system)
     (arguments (list #:tests? #t))
     (native-inputs (list python-hatchling python-pytest))
@@ -270,7 +263,7 @@ the local Snakemake controller.")
      (list python
            python-snakemake-executor-plugin-guix-ssh
            python-openstacksdk))
-    (home-page "https://github.com/nicolas-graves/snakemake-executor-plugin-guix-openstack")
+    (home-page "https://github.com/nicolas-graves/snakemake-guix")
     (synopsis "Run Guix Snakemake jobs on ephemeral OpenStack instances")
     (description
      "This executor creates one tagged OpenStack worker per Snakemake run,

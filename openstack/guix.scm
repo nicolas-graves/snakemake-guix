@@ -1,1 +1,0 @@
-.guix/modules/guix-openstack/packages.scm
