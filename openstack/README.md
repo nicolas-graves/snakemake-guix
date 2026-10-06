@@ -109,6 +109,8 @@ The command prints the Glance image ID on stdout. Put that exact ID in
 `guix-openstack-image`; keep the selected OpenStack region aligned with the
 image's region (for example, `OS_REGION_NAME=GRA11`). The executor never
 uploads an image during a workflow run.
+The `ensure` command has fake-cloud test coverage; a live upload through this
+command has not yet been verified.
 
 See [`worker.scm`](../.guix/modules/guix-openstack/worker.scm) for the OS
 procedure.
