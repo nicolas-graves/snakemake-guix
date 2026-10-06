@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "snakemake-executor-plugin-guix-openstack"
-version = "0.2.1"
+version = "0.2.2"
 description = "Run Guix-backed Snakemake jobs on ephemeral OpenStack instances"
 readme = "README.md"
 requires-python = ">=3.11"

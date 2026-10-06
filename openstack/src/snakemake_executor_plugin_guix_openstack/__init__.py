@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 import math
 from pathlib import Path, PurePosixPath
+import shlex
 import socket
 import time
 from typing import Optional
@@ -58,10 +59,15 @@ class Executor(GuixSSHExecutor):
     """Guix SSH execution with lazy OpenStack provisioning."""
 
     def get_job_exec_prefix(self, job):
+        profile = (
+            self.workflow.executor_settings.remote_profile
+            or "/run/current-system/profile"
+        )
+        profile = shlex.quote(profile.rstrip("/"))
         return (
-            ". /run/current-system/profile/etc/profile && "
+            f". {profile}/etc/profile && "
             "for site_packages in "
-            "/run/current-system/profile/lib/python*/site-packages; do "
+            f"{profile}/lib/python*/site-packages; do "
             'if [ -d "$site_packages" ]; then '
             'PYTHONPATH="${PYTHONPATH:+$PYTHONPATH:}$site_packages"; '
             "fi; done && export PYTHONPATH"
