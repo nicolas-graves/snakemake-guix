@@ -74,8 +74,8 @@ class Settings(SoftwareDeploymentSettingsBase):
         default=False,
         metadata={
             "help": "Pass --allow-untrusted-channels to guix time-machine, "
-            "bypassing commit-signature verification. Security-relevant: only "
-            "enable if you trust the channel source."
+            "allowing channels not recognized as trusted by Guix. "
+            "Security-relevant: only enable if you trust the channel source."
         },
     )
     unsafe_channel_evaluation: bool = field(
@@ -85,6 +85,14 @@ class Settings(SoftwareDeploymentSettingsBase):
             "allowing arbitrary code execution from channels files. "
             "Security-relevant: only enable if you trust the channels file "
             "content."
+        },
+    )
+    disable_authentication: bool = field(
+        default=False,
+        metadata={
+            "help": "Pass --disable-authentication to guix time-machine, "
+            "skipping channel commit signature verification. Security-relevant: "
+            "only enable if you trust the channel source."
         },
     )
 

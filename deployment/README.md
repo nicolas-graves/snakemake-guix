@@ -167,18 +167,19 @@ Plugin-specific settings are passed via `--sdm-guix-<option>`:
 | `--sdm-guix-no-time-machine` | Disable `guix time-machine`, even when a pin is configured | False |
 | `--sdm-guix-additional-args` | Extra arguments forwarded to `guix shell` | None |
 | `--sdm-guix-profile-cache` | Directory of persistent, content-addressed Guix profiles reused across runs and `guix pull` generations; relative paths resolve against the workflow working directory | None (disabled) |
-| `--sdm-guix-allow-untrusted-channels` | Bypass commit-signature verification for `time-machine` channels | False |
+| `--sdm-guix-allow-untrusted-channels` | Allow channels not recognized as trusted by Guix | False |
 | `--sdm-guix-unsafe-channel-evaluation` | Allow arbitrary code execution from `time-machine` channels files | False |
-| `--sdm-guix-disable-authentication` | Pass `--disable-authentication` to `guix time-machine` and disable TLS certificate verification when fetching an HTTP(S) channels file to hash it | False |
+| `--sdm-guix-disable-authentication` | Skip channel commit signature verification in `guix time-machine` | False |
 
-`--sdm-guix-allow-untrusted-channels` and `--sdm-guix-unsafe-channel-evaluation`
-are global-only settings (no per-rule equivalent), off by default, and silently
-have no effect on a rule that doesn't invoke `guix time-machine` (no active
-`channels=`/`url=`/`commit=`/`branch=` pin, or `--sdm-guix-no-time-machine`).
-`--sdm-guix-disable-authentication` is also global-only and off by default. It
-should only be enabled for trusted channel sources whose TLS certificates
-cannot be verified; it removes certificate verification for the plugin's
-channels URL hash fetch as well as for `guix time-machine`.
+The trust-related settings are global-only (no per-rule equivalent) and off by
+default. They have no effect when a rule does not invoke `guix time-machine`
+(no active `channels=`/`url=`/`commit=`/`branch=` pin, or
+`--sdm-guix-no-time-machine`). `--sdm-guix-allow-untrusted-channels` permits
+channels Guix does not recognize as trusted. `--sdm-guix-disable-authentication`
+skips channel commit signature verification. `--sdm-guix-unsafe-channel-evaluation`
+allows arbitrary code execution from a channels file. Use these only when you
+trust the channel source. Disabling authentication does not change HTTPS/TLS
+certificate validation.
 
 ## Composing Environments
 

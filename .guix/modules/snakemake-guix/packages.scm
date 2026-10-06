@@ -189,7 +189,7 @@ commands and support for highlighting embedded R code.")
 (define-public python-snakemake-software-deployment-plugin-guix
   (package
     (name "python-snakemake-software-deployment-plugin-guix")
-    (version "0.4.0")
+    (version "0.4.1")
     (source
      (origin
        (method git-fetch)

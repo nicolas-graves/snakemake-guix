@@ -149,6 +149,7 @@ class Env(EnvBase):
         setting_name = {
             "--allow-untrusted-channels": "--sdm-guix-allow-untrusted-channels",
             "--unsafe-channel-evaluation": "--sdm-guix-unsafe-channel-evaluation",
+            "--disable-authentication": "--sdm-guix-disable-authentication",
         }[flag]
         raise WorkflowError(
             f"guix software deployment: your guix predates {flag} "
@@ -228,6 +229,9 @@ class Env(EnvBase):
         if settings is not None and settings.unsafe_channel_evaluation:
             self._require_time_machine_flag("--unsafe-channel-evaluation")
             flags.append("--unsafe-channel-evaluation")
+        if settings is not None and settings.disable_authentication:
+            self._require_time_machine_flag("--disable-authentication")
+            flags.append("--disable-authentication")
         return flags
 
     def _command_prefix(self, guix_subcommand: str) -> str:
@@ -490,6 +494,7 @@ class Env(EnvBase):
             hash_object.update(str(settings.no_time_machine).encode())
             hash_object.update(str(settings.allow_untrusted_channels).encode())
             hash_object.update(str(settings.unsafe_channel_evaluation).encode())
+            hash_object.update(str(settings.disable_authentication).encode())
 
         if self._use_time_machine():
             pin_kind, pin_value = self._time_machine_pin()
