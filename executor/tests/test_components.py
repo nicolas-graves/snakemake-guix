@@ -83,6 +83,24 @@ def test_preflight_rejects_guix_copy_port_mismatch(host, monkeypatch):
         commands.preflight(host)
 
 
+def test_preflight_names_each_remote_requirement(host, monkeypatch):
+    commands = Commands()
+    monkeypatch.setattr("snakemake_executor_plugin_guix_ssh.commands.shutil.which", lambda _: "/bin/tool")
+    commands.run = lambda argv, **kwargs: sp.CompletedProcess(
+        argv, 0, stdout="hostname worker.example\nuser user\nport 2222\n", stderr=""
+    )
+    scripts = []
+    commands.ssh = lambda host, script: scripts.append(script)
+
+    commands.preflight(host)
+
+    assert len(scripts) == 1
+    assert "remote guix is unavailable" in scripts[0]
+    assert "remote rsync is unavailable" in scripts[0]
+    assert "remote workdir does not exist" in scripts[0]
+    assert "remote workdir is not writable" in scripts[0]
+
+
 def test_closure_is_deployed_once_per_host_and_digest(host):
     commands = RecordingCommands()
     transport = Transport(commands)

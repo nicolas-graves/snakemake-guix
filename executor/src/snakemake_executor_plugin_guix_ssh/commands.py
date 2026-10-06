@@ -89,9 +89,14 @@ class Commands:
                 f"SSH alias {host.hostname!r} must configure identity file "
                 f"{self.identity_file!r} for guix copy"
             )
-        self.ssh(host, f"command -v guix >/dev/null && command -v rsync >/dev/null && "
-                       f"test -d {shlex.quote(str(host.workdir))} && "
-                       f"test -w {shlex.quote(str(host.workdir))}")
+        workdir = shlex.quote(str(host.workdir))
+        self.ssh(
+            host,
+            "command -v guix >/dev/null || { echo 'remote guix is unavailable' >&2; exit 1; }; "
+            "command -v rsync >/dev/null || { echo 'remote rsync is unavailable' >&2; exit 1; }; "
+            f"test -d {workdir} || {{ echo 'remote workdir does not exist' >&2; exit 1; }}; "
+            f"test -w {workdir} || {{ echo 'remote workdir is not writable' >&2; exit 1; }}"
+        )
 
     def guix_copy(self, host: Host, store_path: Path) -> sp.CompletedProcess:
         # `guix copy` accepts an SSH host (and honors ~/.ssh/config), not an
