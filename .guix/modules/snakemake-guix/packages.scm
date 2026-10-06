@@ -204,7 +204,7 @@ commands and support for highlighting embedded R code.")
                        version))))
        (file-name (git-file-name name version))
        (sha256
-        (base32 "mtqaoes7narwnbsf3it6uwnisi456nnhgdjcap5a5g7gxkrrws7q"))))
+        (base32 "1gxl66m6pgp9l0zj1lihlwsxyfcjm1cyl9ys8n36c8v8bw90gq34"))))
     (build-system pyproject-build-system)
     (arguments
      ;; XXX: We would need access to builds with the guile daemon to be able
