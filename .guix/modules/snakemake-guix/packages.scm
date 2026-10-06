@@ -13,6 +13,8 @@
   #:use-module ((guix utils) #:select (substitute-keyword-arguments))
   #:use-module (gnu packages)
   #:use-module (gnu packages check)
+  #:use-module (gnu packages databases)
+  #:use-module (gnu packages duckdb)
   #:use-module (gnu packages emacs-xyz)
   #:use-module (gnu packages openstack)
   #:use-module (gnu packages package-management)
@@ -21,6 +23,7 @@
   #:use-module ((gnu packages python-science) #:prefix guix:)
   #:use-module (gnu packages rsync)
   #:use-module (gnu packages ssh)
+  #:use-module (gnu packages time)
   #:use-module (gnu packages version-control)
   #:use-module (ice-9 ftw)
   #:use-module (ice-9 match)
@@ -271,6 +274,90 @@ the local Snakemake controller.")
 transfers Guix closures through guix-ssh, retrieves job results, and removes
 the instance when the run finishes. Its separate image maintenance command
 publishes and reuses immutable private Glance images.")
+    (license license:gpl3+)))
+
+(define-public python-duckdb-engine
+  (package
+    (name "python-duckdb-engine")
+    (version "0.17.0")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "duckdb_engine" version))
+       (sha256
+        (base32 "1kzk137x419d0d05l73irwaq0j4b5di946l8h2m3draljy326srr"))))
+    (build-system pyproject-build-system)
+    (arguments
+     ;; The test suite needs network access and optional dependencies.
+     (list #:tests? #f))
+    (propagated-inputs (list python-duckdb python-packaging python-sqlalchemy-2))
+    (native-inputs (list python-poetry-core))
+    (home-page "https://github.com/Mause/duckdb_engine")
+    (synopsis "SQLAlchemy driver for DuckDB")
+    (description "This package provides a SQLAlchemy dialect for DuckDB.")
+    (license license:expat)))
+
+(define %snakemake-storage-plugin-sqlsink-commit
+  "c4a8c52e0a028f420ada9161935395e6003a633f")
+
+(define %snakemake-storage-plugin-sqlsink-source
+  (origin
+    (method git-fetch)
+    (uri (git-reference
+           (url "https://github.com/nicolas-graves/snakemake-storage-plugin-sqlsink")
+           (commit %snakemake-storage-plugin-sqlsink-commit)))
+    (file-name (git-file-name "snakemake-storage-plugin-sqlsink" "0.1.0"))
+    (sha256
+     (base32 "0r85jiv1m1sgji98ng9za1ysanvknhsvggy2lbkq4ldaw81kv8yg"))))
+
+(define-public python-sqlsink
+  (package
+    (name "python-sqlsink")
+    (version "0.1.0")
+    (source %snakemake-storage-plugin-sqlsink-source)
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'enter-core-source
+            (lambda _ (chdir "workflow/scripts"))))))
+    (native-inputs (list python-setuptools))
+    (propagated-inputs
+     (list python-duckdb
+           python-duckdb-engine
+           python-psycopg
+           python-pytz
+           python-sqlalchemy-2))
+    (home-page "https://github.com/nicolas-graves/snakemake-storage-plugin-sqlsink")
+    (synopsis "Incremental Parquet-to-SQL publishing core")
+    (description "This package provides the sqlsink library, which publishes
+Parquet datasets into PostgreSQL or DuckDB tables incrementally.")
+    (license license:gpl3+)))
+
+(define-public python-snakemake-storage-plugin-sqlsink
+  (package
+    (name "python-snakemake-storage-plugin-sqlsink")
+    (version "0.1.0")
+    (source %snakemake-storage-plugin-sqlsink-source)
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      #:tests? #f
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'enter-plugin-source
+            (lambda _ (chdir "workflow/sql_storage_plugin"))))))
+    (native-inputs (list python-setuptools snakemake))
+    (propagated-inputs
+     (list python-snakemake-interface-common
+           python-sqlsink
+           guix:python-snakemake-interface-storage-plugins))
+    (home-page "https://github.com/nicolas-graves/snakemake-storage-plugin-sqlsink")
+    (synopsis "Snakemake storage plugin publishing tables to a SQL database")
+    (description "This Snakemake storage plugin uses SQL tables as workflow
+outputs, backed by the sqlsink library.")
     (license license:gpl3+)))
 
 (define-public python-snakemake-report-plugin-forge-dag
