@@ -4,9 +4,9 @@ This plugin provides [Guix](https://guix.gnu.org/) support for Snakemake workflo
 
 Minimal Guix knowledge is expected, but not much more than what you can find in [this video](https://10years.guix.gnu.org/video/guix-as-a-tool-for-computational-science/)
 
-Software deployment plugins have not formally landed in Snakemake, but I plan to continue and update this repository along development progress in the [feat/software-deployment-plugins](https://github.com/snakemake/snakemake/tree/feat/software-deployment-plugins) branch.  All commits and patches are recorded in [.guix/modules/snakemake-guix/packages.scm](./.guix/modules/snakemake-guix/packages.scm).
+This plugin targets Snakemake's software deployment plugin interface. The Guix channel provides the compatible Snakemake and interface packages alongside this plugin. The Guix package definitions and Snakemake patches are recorded in [.guix/modules/snakemake-guix/packages.scm](../.guix/modules/snakemake-guix/packages.scm).
 
-This plugin currently only exists on Guix, which is assumed to be installed on your system. Once you have this channel pulled, install the `python-snakemake-software-deployment-plugin-guix` just like you would install any guix package.
+Guix must be installed on the system where Snakemake runs. To install the plugin with this channel, install `python-snakemake-software-deployment-plugin-guix` like any other Guix package.
 
 ## Features
 
@@ -95,16 +95,16 @@ snakemake --sdm guix --sdm-guix-container
 
 ### Using Time Machine for Reproducibility
 
-By default, the plugin uses `guix time-machine` for reproducibility. Provide a channels file:
+When you configure a channel pin, the plugin uses `guix time-machine` to run against it. For example, provide a channels file:
 
 ```bash
 snakemake --sdm guix --sdm-guix-channels channels.scm
 ```
 
-To disable time machine and use the current Guix version:
+Without a channel, URL, commit, or branch pin, the plugin uses the installed Guix directly. To explicitly disable time-machine even when a pin is configured, use:
 
 ```bash
-snakemake --sdm guix --sdm-guix-time-machine false
+snakemake --sdm guix --sdm-guix-no-time-machine
 ```
 
 Alternatively, pin a single channel by commit or branch without maintaining a
@@ -144,10 +144,10 @@ different (or new) profile. When an environment is pinned via `channels=`,
 `url=`/`commit=`/`branch=`, or the equivalent `--sdm-guix-*` settings, running
 a plain `guix pull` on your machine does *not* by itself invalidate the
 cached profile — the pin, not your global Guix generation, determines
-reproducibility. An unpinned environment (`--sdm-guix-time-machine false`, or
-no pin configured) is realized against whatever `guix` is on `PATH`, so its
-cached profile can go stale relative to a newer local Guix; remove the
-corresponding profile directory to force realization again.
+reproducibility. An unpinned environment (or one using
+`--sdm-guix-no-time-machine`) is realized against whatever `guix` is on
+`PATH`, so its cached profile can go stale relative to a newer local Guix;
+remove the corresponding profile directory to force realization again.
 
 There is currently no automated pruning of old or unused profiles; remove
 subdirectories under the cache root manually as needed.
@@ -164,16 +164,21 @@ Plugin-specific settings are passed via `--sdm-guix-<option>`:
 | `--sdm-guix-commit` | Commit to use with `time-machine`; overrides any per-rule `commit=` | None |
 | `--sdm-guix-branch` | Branch tip to use with `time-machine`; overrides any per-rule `branch=` | None |
 | `--sdm-guix-container` | Run `guix shell` with `--container` for isolation | False |
-| `--sdm-guix-time-machine` | Use `guix time-machine` for reproducibility | True |
+| `--sdm-guix-no-time-machine` | Disable `guix time-machine`, even when a pin is configured | False |
 | `--sdm-guix-additional-args` | Extra arguments forwarded to `guix shell` | None |
 | `--sdm-guix-profile-cache` | Directory of persistent, content-addressed Guix profiles reused across runs and `guix pull` generations; relative paths resolve against the workflow working directory | None (disabled) |
 | `--sdm-guix-allow-untrusted-channels` | Bypass commit-signature verification for `time-machine` channels | False |
 | `--sdm-guix-unsafe-channel-evaluation` | Allow arbitrary code execution from `time-machine` channels files | False |
+| `--sdm-guix-disable-authentication` | Pass `--disable-authentication` to `guix time-machine` and disable TLS certificate verification when fetching an HTTP(S) channels file to hash it | False |
 
 `--sdm-guix-allow-untrusted-channels` and `--sdm-guix-unsafe-channel-evaluation`
 are global-only settings (no per-rule equivalent), off by default, and silently
 have no effect on a rule that doesn't invoke `guix time-machine` (no active
-`channels=`/`url=`/`commit=`/`branch=` pin, or `--sdm-guix-time-machine false`).
+`channels=`/`url=`/`commit=`/`branch=` pin, or `--sdm-guix-no-time-machine`).
+`--sdm-guix-disable-authentication` is also global-only and off by default. It
+should only be enabled for trusted channel sources whose TLS certificates
+cannot be verified; it removes certificate verification for the plugin's
+channels URL hash fetch as well as for `guix time-machine`.
 
 ## Composing Environments
 
@@ -329,26 +334,16 @@ sdm-guix-profile-cache: .snakemake/guix/profiles
 shared-fs-usage: none
 ```
 
-Workers need key-based SSH access, Guix, `rsync`, and sufficient resources.
-They do not install Python packages or independently resolve the rule
-environment.  Input, output, and workflow paths must be relative to the
-workflow working directory.  Failed job directories are retained by default
-for diagnosis; use `--no-guix-ssh-keep-failed` to remove them.
+Workers need key-based SSH access, Guix, `rsync`, Snakemake with the Guix
+deployment plugin, and sufficient resources. The controller copies the outer
+job's Guix closure; a nested workflow may require additional environments.
+Input and output paths may be relative, or absolute paths under the controller
+working directory. Failed job directories are retained by default for
+diagnosis; set `--guix-ssh-remove-failed` to remove them.
 
 ## Examples
 
-The `examples/` directory contains a minimal workflow that captures GNU `hello` output, exercising both ways to specify an environment:
-
-```bash
-cd examples
-snakemake --sdm guix --cores 1
-```
-
-This runs two rules:
-- `greet_packages` — environment declared inline with `packages=["hello"]`
-- `greet_manifest` — environment declared via `manifest_files=["manifest.scm"]`
-
-Both produce a file under `results/` containing the greeting. If both succeed, the plugin is wired up correctly end-to-end.
+The workflow snippets above show package-list and manifest-based environments. Save a snippet in a `Snakefile` and run it with `snakemake --sdm guix --cores 1` to try it.
 
 ## Limitations
 

@@ -1,5 +1,9 @@
 # Snakemake Guix OpenStack executor
 
+The repository-relative commands below run from the `snakemake-guix` checkout
+root, which contains the `openstack/` module and `.guix/modules/` channel
+definitions.
+
 This executor runs an allowlisted set of Snakemake jobs on one temporary
 OpenStack worker for the whole invocation. It uses `guix-ssh` for Guix closure
 transfer, staging, execution, and output retrieval. The worker is created only
@@ -67,7 +71,9 @@ guix shell python -- python3 openstack/scripts/openrc_to_json.py \
 ```
 
 The record contains plaintext credentials. Keep it out of version control and
-remove it when it is no longer needed.
+remove it when it is no longer needed. The executor does not load this JSON
+file; configure OpenStack credentials through the `OS_*` environment or
+`clouds.yaml` as described above.
 
 The worker image must contain Guix, Snakemake, the Guix software deployment
 plugin, key-only root SSH, rsync, bash, coreutils, the host-key console service,
