@@ -227,6 +227,42 @@ commands and support for highlighting embedded R code.")
 using Guix command-line calls.")
     (license license:gpl3+)))
 
+(define-public python-snakemake-contracts
+  (package
+    (name "python-snakemake-contracts")
+    (version "0.5.0")
+    (source
+     (local-file (string-append %snakemake-guix-source-root "/contracts")
+                 (git-file-name name version)
+                 #:recursive? #t))
+    (build-system pyproject-build-system)
+    (arguments (list #:test-flags #~(list "tests/test_contracts.py")))
+    (propagated-inputs (list python-pyyaml))
+    (native-inputs (list python-hatchling python-pytest))
+    (home-page "https://github.com/nicolas-graves/snakemake-guix")
+    (synopsis "Lightweight contract helpers for Snakemake modules")
+    (description
+     "This package standardizes provides and requires contracts between
+Snakemake modules.")
+    (license license:expat)))
+
+(define-public python-snakemake-contracts-wrapper
+  (package
+    (inherit python-snakemake-contracts)
+    (name "python-snakemake-contracts-wrapper")
+    (arguments
+     (list
+      #:test-flags #~(list "../tests/test_wrapper.py")
+      #:phases
+      #~(modify-phases %standard-phases
+          (add-after 'unpack 'enter-wrapper-source
+            (lambda _ (chdir "wrapper"))))))
+    (propagated-inputs (list python-pyyaml python-snakemake-contracts))
+    (synopsis "Expand Snakemake rule parameters into script CLI arguments")
+    (description
+     "This package provides a Snakemake rule wrapper that expands named
+inputs, outputs, and parameters into script command-line arguments.")))
+
 (define-public python-snakemake-executor-plugin-guix-ssh
   (package
     (name "python-snakemake-executor-plugin-guix-ssh")

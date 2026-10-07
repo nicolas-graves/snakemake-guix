@@ -1,0 +1,13 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "snakemake_contracts_wrapper"
+version = "0.5.0"
+description = "Snakemake rule wrapper that expands named inputs, outputs, and params into script CLI arguments"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.hatch.build.targets.wheel]
+packages = ["snakemake_contracts_wrapper"]

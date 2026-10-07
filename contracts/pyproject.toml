@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "snakemake_contracts"
+version = "0.5.0"
+description = "Lightweight contract helpers for Snakemake modules"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["PyYAML>=6.0"]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.10",
+    "pytest>=8.0",
+    "pytest-mypy>=1.0",
+    "types-PyYAML>=6.0",
+]
+
+[project.scripts]
+snakemake-contracts = "snakemake_contracts.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/snakemake_contracts"]
+
+[tool.pytest.ini_options]
+addopts = "--mypy"
+pythonpath = ["src", "wrapper"]
+testpaths = [
+    "src",
+    "wrapper/snakemake_contracts_wrapper",
+    "tests",
+]
+
+[tool.mypy]
+files = [
+    "src",
+    "wrapper/snakemake_contracts_wrapper",
+    "tests",
+]
+strict = true
+warn_unused_ignores = false

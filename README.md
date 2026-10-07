@@ -1,7 +1,10 @@
 # Snakemake Guix channel
 
-This repository contains the Guix software deployment plugin and two executors:
+This repository contains Snakemake contracts, the Guix software deployment
+plugin, and two executors:
 
+- [`contracts/`](contracts/) — `snakemake-contracts` and its rule wrapper,
+  which define and validate provides/requires contracts between modules.
 - [`deployment/`](deployment/) — `snakemake-software-deployment-plugin-guix`,
   which realizes immutable Guix environments and exposes them through a public
   executor-facing contract.
