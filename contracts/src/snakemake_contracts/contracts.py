@@ -19,6 +19,9 @@ class ContractError(Exception):
 class WorkflowLike(Protocol):
     """The small part of Snakemake's workflow object used by this module."""
 
+    @property
+    def snakefile(self) -> str | Path: ...
+
     def configfile(self, path: str) -> None: ...
 
 
@@ -81,7 +84,6 @@ def module_context(
     workflow: WorkflowLike,
     config: MutableMapping[str, Any],
     *,
-    snakefile: str | Path,
     configfile: str | Path = "config.yaml",
     standalone: StandaloneMode = "required-config",
 ) -> ModuleContext:
@@ -90,10 +92,7 @@ def module_context(
     if standalone not in ("required-config", "local-defaults"):
         raise ValueError(f"unsupported standalone mode: {standalone!r}")
 
-    # Snakemake's ``workflow.snakefile`` property returns the filename of its
-    # immediate caller.  It therefore has to be evaluated by the Snakefile and
-    # passed in; accessing it here would resolve to this library module.
-    module_dir = Path(snakefile).resolve().parent
+    module_dir = Path(workflow.snakefile).resolve().parent
     config_path = (module_dir / configfile).resolve()
     if not config and (standalone == "required-config" or config_path.exists()):
         workflow.configfile(str(config_path))

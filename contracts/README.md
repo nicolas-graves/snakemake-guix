@@ -81,7 +81,7 @@ contract resolution:
 ```python
 from snakemake_contracts.contracts import module_context
 
-ctx = module_context(workflow, config, snakefile=workflow.snakefile)
+ctx = module_context(workflow, config)
 
 OUTDIR = ctx.out_dir
 DATADIR = ctx.data_dir
@@ -100,12 +100,7 @@ Modules designed to work without a config file can opt into absolute,
 module-local defaults:
 
 ```python
-ctx = module_context(
-    workflow,
-    config,
-    snakefile=workflow.snakefile,
-    standalone="local-defaults",
-)
+ctx = module_context(workflow, config, standalone="local-defaults")
 
 # Defaults to <module>/out, <module>/data, and <module>/.cache.
 OUTDIR = ctx.out_dir
@@ -141,7 +136,7 @@ See [`wrapper/README.md`](wrapper/README.md) for usage and its surface.
 - `load_provides(module, repo_root=None)`
 - `provides(module, key, repo_root=None)`
 - `out_dir(module, repo_root=None)`
-- `module_context(workflow, config, snakefile=..., configfile="config.yaml", standalone="required-config")`
+- `module_context(workflow, config, configfile="config.yaml", standalone="required-config")`
 - `ModuleContext`
 - `list_modules(repo_root=None)`
 - `mangle(name)`

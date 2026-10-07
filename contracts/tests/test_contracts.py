@@ -20,7 +20,8 @@ from snakemake_contracts.contracts import (
 
 
 class FakeWorkflow:
-    def __init__(self, config: MutableMapping[str, Any]) -> None:
+    def __init__(self, snakefile: Path, config: MutableMapping[str, Any]) -> None:
+        self.snakefile = snakefile
         self.config = config
         self.loaded: list[str] = []
 
@@ -83,9 +84,9 @@ class ModuleContextTests(unittest.TestCase):
             snakefile = self.make_module(Path(tmp))
             (snakefile.parent / "config.yaml").write_text("out: ignored\n")
             config: dict[str, Any] = {"out": "inherited"}
-            workflow = FakeWorkflow(config)
+            workflow = FakeWorkflow(snakefile, config)
 
-            context = module_context(workflow, config, snakefile=snakefile)
+            context = module_context(workflow, config)
 
             self.assertEqual(workflow.loaded, [])
             self.assertEqual(context.out_dir, "inherited")
@@ -96,11 +97,9 @@ class ModuleContextTests(unittest.TestCase):
             config_path = snakefile.parent / "settings.yaml"
             config_path.write_text("cache: configured-cache\n")
             config: dict[str, Any] = {}
-            workflow = FakeWorkflow(config)
+            workflow = FakeWorkflow(snakefile, config)
 
-            context = module_context(
-                workflow, config, snakefile=snakefile, configfile="settings.yaml"
-            )
+            context = module_context(workflow, config, configfile="settings.yaml")
 
             self.assertEqual(workflow.loaded, [str(config_path.resolve())])
             self.assertEqual(context.cache_dir, "configured-cache")
@@ -108,10 +107,10 @@ class ModuleContextTests(unittest.TestCase):
     def test_required_config_delegates_missing_file_error_to_workflow(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             snakefile = self.make_module(Path(tmp))
-            workflow = FakeWorkflow({})
+            workflow = FakeWorkflow(snakefile, {})
 
             with self.assertRaises(FileNotFoundError):
-                module_context(workflow, workflow.config, snakefile=snakefile)
+                module_context(workflow, workflow.config)
 
     def test_local_defaults_load_existing_config_but_tolerate_missing_one(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -119,24 +118,18 @@ class ModuleContextTests(unittest.TestCase):
             configured_snakefile = self.make_module(root, "configured")
             configured_path = configured_snakefile.parent / "config.yaml"
             configured_path.write_text("data: input-data\n")
-            configured_workflow = FakeWorkflow({})
+            configured_workflow = FakeWorkflow(configured_snakefile, {})
 
             configured = module_context(
-                configured_workflow,
-                configured_workflow.config,
-                snakefile=configured_snakefile,
-                standalone="local-defaults",
+                configured_workflow, configured_workflow.config, standalone="local-defaults"
             )
             self.assertEqual(configured_workflow.loaded, [str(configured_path.resolve())])
             self.assertEqual(configured.data_dir, "input-data")
 
             default_snakefile = self.make_module(root, "defaulted")
-            default_workflow = FakeWorkflow({})
+            default_workflow = FakeWorkflow(default_snakefile, {})
             defaulted = module_context(
-                default_workflow,
-                default_workflow.config,
-                snakefile=default_snakefile,
-                standalone="local-defaults",
+                default_workflow, default_workflow.config, standalone="local-defaults"
             )
             self.assertEqual(default_workflow.loaded, [])
             self.assertEqual(defaulted.out_dir, str(default_snakefile.parent / "out"))
@@ -147,7 +140,7 @@ class ModuleContextTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             snakefile = self.make_module(Path(tmp))
             config: dict[str, Any] = {"cache": "only-cache"}
-            context = module_context(FakeWorkflow(config), config, snakefile=snakefile)
+            context = module_context(FakeWorkflow(snakefile, config), config)
 
             self.assertEqual(context.cache_dir, "only-cache")
             with self.assertRaises(KeyError):
@@ -157,7 +150,7 @@ class ModuleContextTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             snakefile = self.make_module(Path(tmp), "alpha")
             config: dict[str, Any] = {"out": "/chosen/out"}
-            context = module_context(FakeWorkflow(config), config, snakefile=snakefile)
+            context = module_context(FakeWorkflow(snakefile, config), config)
 
             self.assertFalse((snakefile.parent / "provides.yaml").exists())
             (snakefile.parent / "provides.yaml").write_text(
@@ -171,7 +164,7 @@ class ModuleContextTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             snakefile = self.make_module(Path(tmp))
             config: dict[str, Any] = {"out": "out"}
-            context = module_context(FakeWorkflow(config), config, snakefile=snakefile)
+            context = module_context(FakeWorkflow(snakefile, config), config)
 
             with self.assertRaises(FileNotFoundError):
                 context.out("anything")
@@ -185,15 +178,15 @@ class ModuleContextTests(unittest.TestCase):
 
             for override in (None, ""):
                 config: dict[str, Any] = {"out": "unused", "reads": override}
-                context = module_context(FakeWorkflow(config), config, snakefile=snakefile)
+                context = module_context(FakeWorkflow(snakefile, config), config)
                 self.assertEqual(context.require("producer", "reads"), str(producer / "out/nested/reads.fastq"))
 
             absent: dict[str, Any] = {"out": "unused"}
-            context = module_context(FakeWorkflow(absent), absent, snakefile=snakefile)
+            context = module_context(FakeWorkflow(snakefile, absent), absent)
             self.assertEqual(context.require("producer", "reads"), str(producer / "out/nested/reads.fastq"))
 
             overridden: dict[str, Any] = {"reads": "/external/reads.fastq"}
-            context = module_context(FakeWorkflow(overridden), overridden, snakefile=snakefile)
+            context = module_context(FakeWorkflow(snakefile, overridden), overridden)
             self.assertEqual(context.require("producer", "reads"), "/external/reads.fastq")
 
     def test_contract_operations_reject_unsupported_layout(self) -> None:
@@ -202,7 +195,7 @@ class ModuleContextTests(unittest.TestCase):
             snakefile.parent.mkdir()
             snakefile.write_text("")
             config: dict[str, Any] = {"out": "out"}
-            context = module_context(FakeWorkflow(config), config, snakefile=snakefile)
+            context = module_context(FakeWorkflow(snakefile, config), config)
 
             with self.assertRaisesRegex(ContractError, r"<repo>/modules/<module>"):
                 context.out("x")
