@@ -19,6 +19,7 @@
   #:use-module (gnu packages openstack)
   #:use-module (gnu packages package-management)
   #:use-module (gnu packages python)
+  #:use-module (gnu packages python-xyz)
   #:use-module (gnu packages python-build)
   #:use-module ((gnu packages python-science) #:prefix guix:)
   #:use-module (gnu packages rsync)
@@ -298,7 +299,7 @@ publishes and reuses immutable private Glance images.")
     (license license:expat)))
 
 (define %snakemake-storage-plugin-sqlsink-commit
-  "c4a8c52e0a028f420ada9161935395e6003a633f")
+  "950566105d92129da668f092f3e3cb372b344438")
 
 (define %snakemake-storage-plugin-sqlsink-source
   (origin
@@ -308,7 +309,7 @@ publishes and reuses immutable private Glance images.")
            (commit %snakemake-storage-plugin-sqlsink-commit)))
     (file-name (git-file-name "snakemake-storage-plugin-sqlsink" "0.1.0"))
     (sha256
-     (base32 "0r85jiv1m1sgji98ng9za1ysanvknhsvggy2lbkq4ldaw81kv8yg"))))
+     (base32 "17fgm632x7m1m73kd7lplgv1n34z3ffdh9as9npw7bsql4xnpw1f"))))
 
 (define-public python-sqlsink
   (package
@@ -329,6 +330,7 @@ publishes and reuses immutable private Glance images.")
            python-duckdb-engine
            python-psycopg
            python-pytz
+           python-pyyaml
            python-sqlalchemy-2))
     (home-page "https://github.com/nicolas-graves/snakemake-storage-plugin-sqlsink")
     (synopsis "Incremental Parquet-to-SQL publishing core")
