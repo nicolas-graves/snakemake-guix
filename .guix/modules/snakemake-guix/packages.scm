@@ -335,7 +335,7 @@ publishes and reuses immutable private Glance images.")
     (license license:expat)))
 
 (define %snakemake-storage-plugin-sqlsink-commit
-  "950566105d92129da668f092f3e3cb372b344438")
+  "d0d1f5c956456b019806301df49c29b4b882f3a0")
 
 (define %snakemake-storage-plugin-sqlsink-source
   (origin
@@ -343,14 +343,14 @@ publishes and reuses immutable private Glance images.")
     (uri (git-reference
            (url "https://github.com/nicolas-graves/snakemake-storage-plugin-sqlsink")
            (commit %snakemake-storage-plugin-sqlsink-commit)))
-    (file-name (git-file-name "snakemake-storage-plugin-sqlsink" "0.1.0"))
+    (file-name (git-file-name "snakemake-storage-plugin-sqlsink" "0.1.1"))
     (sha256
-     (base32 "17fgm632x7m1m73kd7lplgv1n34z3ffdh9as9npw7bsql4xnpw1f"))))
+     (base32 "0xszm6aynzc1falsr1chbixncd36k366ldgaiphyzjj7h68z03mj"))))
 
 (define-public python-sqlsink
   (package
     (name "python-sqlsink")
-    (version "0.1.0")
+    (version "0.1.1")
     (source %snakemake-storage-plugin-sqlsink-source)
     (build-system pyproject-build-system)
     (arguments
@@ -377,7 +377,7 @@ Parquet datasets into PostgreSQL or DuckDB tables incrementally.")
 (define-public python-snakemake-storage-plugin-sqlsink
   (package
     (name "python-snakemake-storage-plugin-sqlsink")
-    (version "0.1.0")
+    (version "0.1.1")
     (source %snakemake-storage-plugin-sqlsink-source)
     (build-system pyproject-build-system)
     (arguments
