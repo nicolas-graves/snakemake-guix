@@ -19,8 +19,8 @@
   #:use-module (gnu packages openstack)
   #:use-module (gnu packages package-management)
   #:use-module (gnu packages python)
-  #:use-module (gnu packages python-xyz)
   #:use-module (gnu packages python-build)
+  #:use-module (gnu packages python-xyz)
   #:use-module ((gnu packages python-science) #:prefix guix:)
   #:use-module (gnu packages rsync)
   #:use-module (gnu packages ssh)
@@ -335,7 +335,7 @@ publishes and reuses immutable private Glance images.")
     (license license:expat)))
 
 (define %snakemake-storage-plugin-sqlsink-commit
-  "950566105d92129da668f092f3e3cb372b344438")
+  "8a445862030a55171c3de37431d161b9415d6cee")
 
 (define %snakemake-storage-plugin-sqlsink-source
   (origin
@@ -343,14 +343,14 @@ publishes and reuses immutable private Glance images.")
     (uri (git-reference
            (url "https://github.com/nicolas-graves/snakemake-storage-plugin-sqlsink")
            (commit %snakemake-storage-plugin-sqlsink-commit)))
-    (file-name (git-file-name "snakemake-storage-plugin-sqlsink" "0.1.0"))
+    (file-name (git-file-name "snakemake-storage-plugin-sqlsink" "0.1.1"))
     (sha256
-     (base32 "17fgm632x7m1m73kd7lplgv1n34z3ffdh9as9npw7bsql4xnpw1f"))))
+     (base32 "14a03d0ipmchc7075zv92anqx4b0xnhwqj43qwgm80v4skzfrhlz"))))
 
 (define-public python-sqlsink
   (package
     (name "python-sqlsink")
-    (version "0.1.0")
+    (version "0.1.1")
     (source %snakemake-storage-plugin-sqlsink-source)
     (build-system pyproject-build-system)
     (arguments
@@ -362,10 +362,7 @@ publishes and reuses immutable private Glance images.")
             (lambda _ (chdir "workflow/scripts"))))))
     (native-inputs (list python-setuptools))
     (propagated-inputs
-     (list python-duckdb
-           python-duckdb-engine
-           python-psycopg
-           python-pytz
+     (list python-psycopg
            python-pyyaml
            python-sqlalchemy-2))
     (home-page "https://github.com/nicolas-graves/snakemake-storage-plugin-sqlsink")
@@ -377,7 +374,7 @@ Parquet datasets into PostgreSQL or DuckDB tables incrementally.")
 (define-public python-snakemake-storage-plugin-sqlsink
   (package
     (name "python-snakemake-storage-plugin-sqlsink")
-    (version "0.1.0")
+    (version "0.1.1")
     (source %snakemake-storage-plugin-sqlsink-source)
     (build-system pyproject-build-system)
     (arguments
