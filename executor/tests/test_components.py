@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from snakemake_executor_plugin_guix_ssh.commands import CommandError, Commands
+from snakemake_executor_plugin_guix_ssh import Executor
 from snakemake_executor_plugin_guix_ssh.lifecycle import Lifecycle, RemoteJob, Status
 from snakemake_executor_plugin_guix_ssh.model import Capacity, Host
 from snakemake_executor_plugin_guix_ssh.transport import Transport
@@ -246,3 +247,21 @@ def test_status_is_polled_without_persistent_connection(host):
     assert status is Status.RUNNING
     assert message == ""
     assert len(commands.ssh_calls) == 1
+
+
+@pytest.mark.parametrize("type_name", ["NoneType", "EnvSpecSourceFile"])
+def test_workflow_sources_fall_back_for_guix_source_wrapper(tmp_path, monkeypatch, type_name):
+    monkeypatch.chdir(tmp_path)
+    Path("Snakefile").write_text("\n")
+    Path("dsn-worker-manifest.scm").write_text("\n")
+
+    def broken_sources():
+        raise TypeError(f"expected str, bytes or os.PathLike object, not {type_name}")
+
+    executor = SimpleNamespace(
+        workflow=SimpleNamespace(main_snakefile="Snakefile", dag=SimpleNamespace(get_sources=broken_sources)),
+        logger=SimpleNamespace(warning=lambda *_: None),
+        _workflow_sources_fallback=lambda job: {"dsn-worker-manifest.scm"},
+    )
+    sources = Executor._workflow_sources(executor, SimpleNamespace(input=[]))
+    assert sources == ["Snakefile", "dsn-worker-manifest.scm"]

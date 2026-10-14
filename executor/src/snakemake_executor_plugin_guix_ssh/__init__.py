@@ -269,13 +269,13 @@ class Executor(RemoteExecutor):
         try:
             dag_sources = self.workflow.dag.get_sources()
         except TypeError as error:
-            # Snakemake 9.27 can pass None-valued software environment
-            # attributes to is_local_file(), which calls os.fspath(None).
-            if "NoneType" not in str(error):
+            # Snakemake 9.27 can pass software environment source wrappers
+            # or None to is_local_file(), which calls os.fspath() on them.
+            if not any(name in str(error) for name in ("NoneType", "EnvSpecSourceFile")):
                 raise
             self.logger.warning(
                 "Snakemake could not enumerate workflow sources because a "
-                "software environment field is unset; collecting local sources directly"
+                "software environment field is not a path; collecting local sources directly"
             )
             dag_sources = self._workflow_sources_fallback(job)
 

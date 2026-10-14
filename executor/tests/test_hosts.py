@@ -166,7 +166,7 @@ def test_workflow_source_staging_falls_back_when_dag_sources_hits_none(tmp_path,
         "Snakefile", "config.yaml", "env.scm", "modules/workflow.smk",
         "scripts/build.py", "inputs/data.tsv",
     ]
-    assert any("software environment field is unset" in message
+    assert any("software environment field is not a path" in message
                for message in executor.logger.warnings)
 
 
