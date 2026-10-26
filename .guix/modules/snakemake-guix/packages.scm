@@ -395,6 +395,35 @@ Parquet datasets into PostgreSQL or DuckDB tables incrementally.")
 outputs, backed by the sqlsink library.")
     (license license:gpl3+)))
 
+(define-public python-snakemake-storage-plugin-s3
+  (package
+    (name "python-snakemake-storage-plugin-s3")
+    (version "0.3.6")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (pypi-uri "snakemake_storage_plugin_s3" version))
+       (sha256
+        (base32 "177mmyf332802dna5p9lh5my1aabiac9sjq9j93l0c1nbfxzbxx6"))))
+    (build-system pyproject-build-system)
+    (arguments
+     (list
+      ;; The test suite talks to a real or mocked S3 service and is not
+      ;; shipped in the sdist; the smoke test is run against OVH instead.
+      #:tests? #f))
+    (native-inputs (list python-poetry-core))
+    (propagated-inputs
+     (list python-boto3
+           python-botocore
+           python-snakemake-interface-common
+           guix:python-snakemake-interface-storage-plugins))
+    (home-page "https://github.com/snakemake/snakemake-storage-plugin-s3")
+    (synopsis "Snakemake storage plugin for S3 compatible object storage")
+    (description "This Snakemake storage plugin reads and writes workflow
+inputs and outputs in Amazon S3 or any S3 compatible object store, through
+boto3.")
+    (license license:expat)))
+
 (define-public python-snakemake-report-plugin-forge-dag
   (package
     (name "python-snakemake-report-plugin-forge-dag")
