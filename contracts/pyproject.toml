@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "snakemake_contracts"
-version = "0.6.0"
+version = "0.7.0"
 description = "Lightweight contract helpers for Snakemake modules"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,6 +20,9 @@ dev = [
 
 [project.scripts]
 snakemake-contracts = "snakemake_contracts.cli:main"
+
+[project.entry-points.pytest11]
+snakemake_contracts_publication_metrics = "snakemake_contracts.publication_metrics"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/snakemake_contracts"]

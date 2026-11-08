@@ -144,6 +144,16 @@ takes `headers=` and `check_remote=False` (an immutable source, no remote
 checks); `public_browser` serves the `browser: true` entries of
 `ctx.downloads` (`lien_primaire`, `lien_secondaire`, `format`).
 
+## Publication Metrics Plugin
+
+Installing the package registers a pytest plugin
+(`snakemake_contracts.publication_metrics`). Every `publication_metrics.json`
+that pytest's collection reaches becomes one test per metric: an
+`{"sql": ...}` entry is checked for its shape only (the module tests its
+expression), an `{"aggregate": "MAX"|"MIN"|"SUM"|"AVG"|"COUNT", "column": ...}`
+entry is run in DuckDB over selected, grouped, null, signed and repeated rows.
+DuckDB is needed only by those aggregate tests.
+
 ## Wrapper Layer
 
 The repository also includes a separate package, `snakemake_contracts_wrapper`

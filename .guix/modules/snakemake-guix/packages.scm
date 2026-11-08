@@ -230,13 +230,13 @@ using Guix command-line calls.")
 (define-public python-snakemake-contracts
   (package
     (name "python-snakemake-contracts")
-    (version "0.6.0")
+    (version "0.7.0")
     (source
      (local-file (string-append %snakemake-guix-source-root "/contracts")
                  (git-file-name name version)
                  #:recursive? #t))
     (build-system pyproject-build-system)
-    (arguments (list #:test-flags #~(list "tests/test_contracts.py")))
+    (arguments (list #:test-flags #~(list "tests/test_contracts.py" "tests/test_publication_metrics.py")))
     (propagated-inputs (list python-pyyaml))
     (native-inputs (list python-hatchling python-pytest))
     (home-page "https://github.com/nicolas-graves/snakemake-guix")
