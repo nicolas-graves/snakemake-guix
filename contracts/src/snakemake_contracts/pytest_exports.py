@@ -1,11 +1,13 @@
 """Pytest plugin: every module's exported python files (provides.yaml ``python:``) are importable in tests.
 
 The directories are appended to ``sys.path``, after the test's own ``sys.path.insert(0, ...)`` of its
-module's scripts, as the contracts wrapper puts them on a job's PYTHONPATH.
+module's scripts, and to ``PYTHONPATH`` for the scripts a test runs as subprocesses, as the
+contracts wrapper puts them on a job's PYTHONPATH.
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -37,4 +39,7 @@ def pytest_configure(config: pytest.Config) -> None:
     root = _repo_root(Path(config.rootpath))
     if root is None:
         return
-    sys.path.extend(d for d in exported_directories(root) if d not in sys.path)
+    directories = exported_directories(root)
+    sys.path.extend(d for d in directories if d not in sys.path)
+    inherited = [p for p in os.environ.get("PYTHONPATH", "").split(os.pathsep) if p]
+    os.environ["PYTHONPATH"] = os.pathsep.join([*inherited, *(d for d in directories if d not in inherited)])
