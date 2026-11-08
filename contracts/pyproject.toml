@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "snakemake_contracts"
-version = "0.5.0"
+version = "0.6.0"
 description = "Lightweight contract helpers for Snakemake modules"
 readme = "README.md"
 requires-python = ">=3.10"

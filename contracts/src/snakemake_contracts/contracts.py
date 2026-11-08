@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
@@ -25,7 +26,15 @@ class WorkflowLike(Protocol):
     def configfile(self, path: str) -> None: ...
 
 
+class StorageWorkflowLike(Protocol):
+    """The part of Snakemake's workflow object read by the public storage helpers."""
+
+    @property
+    def storage_provider_settings(self) -> Any: ...
+
+
 StandaloneMode = Literal["required-config", "local-defaults"]
+HttpPolicy = Literal["checked", "immutable"]
 
 
 @dataclass(frozen=True)
@@ -78,6 +87,69 @@ class ModuleContext:
         self._module_name()
         override = self.config.get(key)
         return str(override or provides(producer, key, repo_root=self.repo_root))
+
+    @cached_property
+    def downloads(self) -> dict[str, dict[str, Any]]:
+        """The module's ``downloads.yaml``, one mapping per source key."""
+
+        path = self.module_dir / "downloads.yaml"
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        if not isinstance(data, dict) or not all(isinstance(v, dict) for v in data.values()):
+            raise ContractError(f"{path} must contain a mapping of source keys to mappings")
+        return data
+
+    def public_http(
+        self,
+        workflow: StorageWorkflowLike,
+        *,
+        policy: HttpPolicy,
+        headers: dict[str, str] | None = None,
+        check_remote: bool = True,
+    ) -> dict[str, Any]:
+        """Settings of a ``cached-http`` storage for anonymous public responses.
+
+        Unpack them in a storage directive: ``storage tag: **ctx.public_http(workflow, policy="checked")``.
+        ``policy`` applies while ``SNAKEMAKE_STORAGE_CACHED_HTTP_POLICY`` is unset or ``auto``;
+        ``check_remote=False`` pins the source (``immutable``, no remote checks).
+        """
+
+        settings = _public_settings(workflow, "cached-http", policy if check_remote else "immutable")
+        skip = os.environ.get("SNAKEMAKE_STORAGE_CACHED_HTTP_SKIP_REMOTE_CHECKS", "false").lower() in {"true", "1"}
+        settings.update(check_interval=86400, skip_remote_checks=skip or not check_remote)
+        if headers:
+            settings["headers"] = dict(headers)
+        return settings
+
+    def public_browser(self, workflow: StorageWorkflowLike, *, policy: HttpPolicy) -> dict[str, Any]:
+        """Settings of a ``browser-http`` storage serving the ``browser: true`` entries of ``downloads``.
+
+        Each entry gives the file URL (``lien_primaire``), the page that links it (``lien_secondaire``)
+        and the expected ``format``; responses share the ``cached-http`` cache.
+        """
+
+        settings = _public_settings(workflow, "browser-http", policy)
+        settings["sources"] = {
+            entry["lien_primaire"]: {
+                "page": entry["lien_secondaire"],
+                "format": entry["format"],
+                "browser": True,
+            }
+            for entry in self.downloads.values()
+            if entry.get("browser", False)
+        }
+        return settings
+
+
+def _public_settings(workflow: StorageWorkflowLike, provider: str, policy: str) -> dict[str, Any]:
+    default_cache = workflow.storage_provider_settings["cached-http"].get_settings().cache
+    environment_policy = os.environ.get("SNAKEMAKE_STORAGE_CACHED_HTTP_POLICY", "auto")
+    return {
+        "provider": provider,
+        "public_cache": True,
+        "discard_response_cookies": True,
+        "cache": os.environ.get("SNAKEMAKE_STORAGE_CACHED_HTTP_CACHE", default_cache),
+        "policy": policy if environment_policy == "auto" else environment_policy,
+    }
 
 
 def module_context(

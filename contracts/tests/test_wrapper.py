@@ -10,13 +10,17 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "wrapper"))
 sys.path.insert(0, str(ROOT / "src"))
 
-from snakemake_contracts_wrapper import build_argv, namespace_flag, render_shell, snake_to_kebab
+from snakemake_contracts_wrapper import WRAPPER, WRAPPER_DIR, build_argv, namespace_flag, render_shell, snake_to_kebab
 
 
 WRAPPER_SCRIPT = ROOT / "wrapper" / "snakemake_contracts_wrapper" / "snakemake_wrapper" / "wrapper.py"
 
 
 class WrapperCommandTests(unittest.TestCase):
+    def test_wrapper_directive_points_at_the_packaged_wrapper(self) -> None:
+        self.assertEqual(WRAPPER, f"file:{WRAPPER_DIR}")
+        self.assertTrue((WRAPPER_DIR / "wrapper.py").is_file())
+
     def test_snake_to_kebab(self) -> None:
         self.assertEqual(snake_to_kebab("rp2019_f09_87"), "rp2019-f09-87")
 

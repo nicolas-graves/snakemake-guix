@@ -230,7 +230,7 @@ using Guix command-line calls.")
 (define-public python-snakemake-contracts
   (package
     (name "python-snakemake-contracts")
-    (version "0.5.0")
+    (version "0.6.0")
     (source
      (local-file (string-append %snakemake-guix-source-root "/contracts")
                  (git-file-name name version)

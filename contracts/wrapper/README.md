@@ -38,11 +38,11 @@ render_shell(
 # "scripts/train.py --data data.csv --output-model model.pkl"
 ```
 
-As a Snakemake wrapper, point a rule's `wrapper:` directive at
-`snakemake_contracts_wrapper.WRAPPER_DIR`:
+As a Snakemake wrapper, set a rule's `wrapper:` directive to
+`snakemake_contracts_wrapper.WRAPPER` (`f"file:{WRAPPER_DIR}"`):
 
 ```python
-from snakemake_contracts_wrapper import WRAPPER_DIR
+from snakemake_contracts_wrapper import WRAPPER
 
 rule train:
     input:
@@ -53,7 +53,7 @@ rule train:
     params:
         epochs=10,
     wrapper:
-        f"file:{WRAPPER_DIR}"
+        WRAPPER
 ```
 
 The wrapper requires a named input called `script`, which is excluded from
@@ -75,4 +75,4 @@ are set and no `log:` is declared, a default log path is synthesized under
 - `render_shell(command, script=None, input=None, output=None, log=None, params=None, exclude_input=("script",), output_prefix="output-")`
 - `namespace_flag(namespace, name, output_prefix="output-")`
 - `snake_to_kebab(name)`
-- `WRAPPER_DIR`
+- `WRAPPER`, `WRAPPER_DIR`

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, MutableMapping
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -201,6 +204,90 @@ class ModuleContextTests(unittest.TestCase):
                 context.out("x")
             with self.assertRaisesRegex(ContractError, r"<repo>/modules/<module>"):
                 context.require("producer", "x")
+
+
+    def storage_workflow(self, cache: str) -> SimpleNamespace:
+        settings = SimpleNamespace(cache=cache)
+        tagged = SimpleNamespace(get_settings=lambda: settings)
+        return SimpleNamespace(storage_provider_settings={"cached-http": tagged})
+
+    def test_public_http_resolves_policy_cache_and_remote_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            snakefile = self.make_module(Path(tmp))
+            config: dict[str, Any] = {"out": "out"}
+            context = module_context(FakeWorkflow(snakefile, config), config)
+            workflow = self.storage_workflow("/provider/cache")
+
+            with mock.patch.dict(os.environ, {}, clear=True):
+                self.assertEqual(
+                    context.public_http(workflow, policy="checked"),
+                    {
+                        "provider": "cached-http",
+                        "public_cache": True,
+                        "discard_response_cookies": True,
+                        "cache": "/provider/cache",
+                        "policy": "checked",
+                        "check_interval": 86400,
+                        "skip_remote_checks": False,
+                    },
+                )
+                pinned = context.public_http(
+                    workflow, policy="checked", check_remote=False, headers={"User-Agent": "x"}
+                )
+                self.assertEqual(
+                    (pinned["policy"], pinned["skip_remote_checks"], pinned["headers"]),
+                    ("immutable", True, {"User-Agent": "x"}),
+                )
+
+            environment = {
+                "SNAKEMAKE_STORAGE_CACHED_HTTP_CACHE": "/env/cache",
+                "SNAKEMAKE_STORAGE_CACHED_HTTP_POLICY": "offline",
+                "SNAKEMAKE_STORAGE_CACHED_HTTP_SKIP_REMOTE_CHECKS": "1",
+            }
+            with mock.patch.dict(os.environ, environment, clear=True):
+                settings = context.public_http(workflow, policy="immutable")
+                self.assertEqual(
+                    (settings["cache"], settings["policy"], settings["skip_remote_checks"]),
+                    ("/env/cache", "offline", True),
+                )
+            with mock.patch.dict(os.environ, {"SNAKEMAKE_STORAGE_CACHED_HTTP_POLICY": "auto"}, clear=True):
+                self.assertEqual(context.public_http(workflow, policy="immutable")["policy"], "immutable")
+
+    def test_public_browser_serves_browser_entries_from_the_shared_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            snakefile = self.make_module(Path(tmp))
+            (snakefile.parent / "downloads.yaml").write_text(
+                "a:\n  lien_primaire: https://x/a.xlsx\n  lien_secondaire: https://x/page\n"
+                "  format: xlsx\n  browser: true\n"
+                "b:\n  lien_primaire: https://x/b.csv\n"
+            )
+            config: dict[str, Any] = {"out": "out"}
+            context = module_context(FakeWorkflow(snakefile, config), config)
+
+            with mock.patch.dict(os.environ, {}, clear=True):
+                settings = context.public_browser(self.storage_workflow("/provider/cache"), policy="immutable")
+            self.assertEqual(
+                settings,
+                {
+                    "provider": "browser-http",
+                    "public_cache": True,
+                    "discard_response_cookies": True,
+                    "cache": "/provider/cache",
+                    "policy": "immutable",
+                    "sources": {"https://x/a.xlsx": {"page": "https://x/page", "format": "xlsx", "browser": True}},
+                },
+            )
+            self.assertEqual(sorted(context.downloads), ["a", "b"])
+
+    def test_downloads_rejects_a_non_mapping_entry(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            snakefile = self.make_module(Path(tmp))
+            (snakefile.parent / "downloads.yaml").write_text("a: just-a-string\n")
+            config: dict[str, Any] = {"out": "out"}
+            context = module_context(FakeWorkflow(snakefile, config), config)
+
+            with self.assertRaisesRegex(ContractError, "mapping of source keys"):
+                _ = context.downloads
 
 
 if __name__ == "__main__":

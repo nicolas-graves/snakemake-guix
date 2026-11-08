@@ -124,6 +124,26 @@ reads = ctx.require("qc", "reads")
 context does not require that file. Wrapper discovery remains the responsibility
 of the separate `snakemake_contracts_wrapper` package.
 
+`ctx.downloads` is the module's `downloads.yaml`, read on first use.
+`ctx.public_http(workflow, policy=...)` and `ctx.public_browser(workflow,
+policy=...)` return the settings of a storage for anonymous public responses,
+to unpack in a storage directive:
+
+```python
+storage public_alpha:
+    **ctx.public_http(workflow, policy="checked")
+
+storage public_alpha_browser:
+    **ctx.public_browser(workflow, policy="immutable")
+```
+
+Both share the `cached-http` cache (`SNAKEMAKE_STORAGE_CACHED_HTTP_CACHE`, else
+the provider setting). `policy` applies while
+`SNAKEMAKE_STORAGE_CACHED_HTTP_POLICY` is unset or `auto`. `public_http` also
+takes `headers=` and `check_remote=False` (an immutable source, no remote
+checks); `public_browser` serves the `browser: true` entries of
+`ctx.downloads` (`lien_primaire`, `lien_secondaire`, `format`).
+
 ## Wrapper Layer
 
 The repository also includes a separate package, `snakemake_contracts_wrapper`
