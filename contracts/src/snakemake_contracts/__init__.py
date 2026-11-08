@@ -3,10 +3,12 @@ from .contracts import (
     ModuleContext,
     list_modules,
     load_provides,
+    load_python_exports,
     mangle,
     module_context,
     out_dir,
     provides,
+    python_export,
     validate_repo,
 )
 
@@ -15,9 +17,11 @@ __all__ = [
     "ModuleContext",
     "list_modules",
     "load_provides",
+    "load_python_exports",
     "mangle",
     "module_context",
     "out_dir",
     "provides",
+    "python_export",
     "validate_repo",
 ]

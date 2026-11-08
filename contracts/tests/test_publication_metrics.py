@@ -42,3 +42,15 @@ def test_a_catalog_file_is_collected_one_test_per_metric(pytester: pytest.Pytest
                                                    '"c": {"aggregate": "MEDIAN", "column": "x"}}')
     result = pytester.runpytest("-p", "snakemake_contracts.publication_metrics")
     result.assert_outcomes(passed=2, failed=1)
+
+
+def test_exported_directories_of_every_module(tmp_path: Path) -> None:
+    from snakemake_contracts.pytest_exports import exported_directories
+
+    for name, provides in (("a", "python:\n  lookups: scripts/lookups.py\n"), ("b", "out: x.csv\n"), ("c", None)):
+        module = tmp_path / "modules" / name
+        (module / "scripts").mkdir(parents=True)
+        (module / "Snakefile").write_text("")
+        if provides:
+            (module / "provides.yaml").write_text(provides)
+    assert exported_directories(tmp_path) == [str((tmp_path / "modules" / "a" / "scripts").resolve())]

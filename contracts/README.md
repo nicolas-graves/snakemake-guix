@@ -144,6 +144,33 @@ takes `headers=` and `check_remote=False` (an immutable source, no remote
 checks); `public_browser` serves the `browser: true` entries of
 `ctx.downloads` (`lien_primaire`, `lien_secondaire`, `format`).
 
+## Python Exports
+
+A module makes some of its scripts importable by listing them under the
+reserved `python:` key of its `provides.yaml` (module name -> path relative to
+the module directory):
+
+```yaml
+python:
+  dimension_lookups: scripts/dimension_lookups.py
+```
+
+A consumer declares the file as its rule's `python` input; the contracts
+wrapper puts the file's directory on `PYTHONPATH` inside the job (not on the
+command line), and the script does a plain `import dimension_lookups`:
+
+```python
+rule x:
+    input:
+        script=SCRIPTS / "x.py",
+        python=[ctx.python("_nomenclatures", "dimension_lookups")],
+    wrapper: f"file:{_CONTRACTS_WRAPPER}"
+```
+
+A shell rule prefixes its command with `PYTHONPATH={params.pythonpath:q}`,
+`pythonpath=ctx.pythonpath(*exports)`. The `snakemake_contracts.pytest_exports`
+plugin appends every module's exported directories to `sys.path` in tests.
+
 ## Publication Metrics Plugin
 
 Installing the package registers a pytest plugin

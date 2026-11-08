@@ -88,6 +88,20 @@ class ModuleContext:
         override = self.config.get(key)
         return str(override or provides(producer, key, repo_root=self.repo_root))
 
+    def python(self, producer: str, name: str) -> str:
+        """The file `producer` exports as importable module `name` (provides.yaml ``python:``).
+
+        Declare it as the rule's ``python`` input (a list for several): the contracts wrapper puts
+        its directory on PYTHONPATH, so the script does a plain ``import name``.
+        """
+        self._module_name()
+        return str(python_export(producer, name, repo_root=self.repo_root))
+
+    def pythonpath(self, *exports: str) -> str:
+        """PYTHONPATH entries of `exports` (ctx.python paths), for a shell rule's
+        ``PYTHONPATH={params.pythonpath:q}`` prefix."""
+        return os.pathsep.join(dict.fromkeys(str(Path(path).resolve().parent) for path in exports))
+
     @cached_property
     def downloads(self) -> dict[str, dict[str, Any]]:
         """The module's ``downloads.yaml``, one mapping per source key."""
@@ -187,7 +201,11 @@ def modules_dir(repo_root: str | Path | None = None) -> Path:
     return _repo_root(repo_root) / "modules"
 
 
-def load_provides(module: str, repo_root: str | Path | None = None) -> dict[str, str]:
+# provides.yaml key holding the module's importable files ({module name: relative path}), not an output.
+PYTHON_EXPORTS = "python"
+
+
+def _provides_file(module: str, repo_root: str | Path | None) -> tuple[Path, dict[str, Any]]:
     path = modules_dir(repo_root) / module / "provides.yaml"
     if not path.exists():
         raise FileNotFoundError(f"{path} not found")
@@ -195,10 +213,39 @@ def load_provides(module: str, repo_root: str | Path | None = None) -> dict[str,
         data = yaml.safe_load(f) or {}
     if not isinstance(data, dict):
         raise ContractError(f"{path} must contain a mapping of logical keys to relative paths")
+    return path, data
+
+
+def _string_mapping(path: Path, data: Any, what: str) -> dict[str, str]:
+    if not isinstance(data, dict):
+        raise ContractError(f"{path}: {what} must be a mapping")
     bad = [k for k, v in data.items() if not isinstance(k, str) or not isinstance(v, str)]
     if bad:
         raise ContractError(f"{path} contains non-string keys/values: {bad}")
     return data
+
+
+def load_provides(module: str, repo_root: str | Path | None = None) -> dict[str, str]:
+    """The module's outputs: logical key -> path relative to its out/ directory."""
+    path, data = _provides_file(module, repo_root)
+    return _string_mapping(path, {k: v for k, v in data.items() if k != PYTHON_EXPORTS}, "outputs")
+
+
+def load_python_exports(module: str, repo_root: str | Path | None = None) -> dict[str, str]:
+    """The module's importable files: module name -> path relative to the module directory."""
+    path, data = _provides_file(module, repo_root)
+    exports = _string_mapping(path, data.get(PYTHON_EXPORTS) or {}, f"'{PYTHON_EXPORTS}'")
+    wrong = [name for name, file in exports.items() if Path(file).name != f"{name}.py"]
+    if wrong:
+        raise ContractError(f"{path}: an export must be the file <name>.py: {wrong}")
+    return exports
+
+
+def python_export(module: str, name: str, repo_root: str | Path | None = None) -> Path:
+    exports = load_python_exports(module, repo_root=repo_root)
+    if name not in exports:
+        raise KeyError(f"{module} exports no python module {name!r}; exports: {sorted(exports)}")
+    return modules_dir(repo_root) / module / exports[name]
 
 
 def out_dir(module: str, repo_root: str | Path | None = None) -> Path:
@@ -232,6 +279,7 @@ def validate_repo(repo_root: str | Path | None = None) -> list[str]:
             continue
         try:
             load_provides(module, root)
+            load_python_exports(module, root)
         except Exception as exc:  # noqa: BLE001
             problems.append(f"{module}: {exc}")
     return problems

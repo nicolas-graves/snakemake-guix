@@ -1,3 +1,5 @@
+import os
+import shlex
 from collections.abc import Mapping
 from os import PathLike
 from pathlib import Path
@@ -53,13 +55,26 @@ if (
     _default_log.parent.mkdir(parents=True, exist_ok=True)
     _log = {"log": str(_default_log)}
 
+# Files another module exports (ctx.python) arrive as the `python` input: their directories go on
+# PYTHONPATH, inside the job's own software environment, and they are not passed as arguments.
+try:
+    _exports = snakemake.input["python"] or []
+except (KeyError, AttributeError, TypeError):
+    _exports = []
+if isinstance(_exports, (str, PathLike)):
+    _exports = [_exports]
+_dirs = list(dict.fromkeys(str(Path(path).resolve().parent) for path in _exports))
+_pythonpath = (f"PYTHONPATH={shlex.quote(os.pathsep.join(_dirs))}${{PYTHONPATH:+{os.pathsep}$PYTHONPATH}} "
+               if _dirs else "")
+
 _threads = str(snakemake.threads)
-shell(render_shell(
+shell(_pythonpath + render_shell(
     script=_script,
     input=snakemake.input,
     output=snakemake.output,
     log=_log,
     params=snakemake.params,
+    exclude_input=("script", "python"),
 ), additional_envvars={
     "OMP_NUM_THREADS": _threads,
     "GOTO_NUM_THREADS": _threads,

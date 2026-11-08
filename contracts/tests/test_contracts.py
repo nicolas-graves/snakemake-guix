@@ -290,5 +290,27 @@ class ModuleContextTests(unittest.TestCase):
                 _ = context.downloads
 
 
+    def test_python_exports_are_listed_apart_from_the_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            consumer = self.make_module(root)
+            producer = self.make_module(root, "producer").parent
+            (producer / "scripts").mkdir()
+            (producer / "provides.yaml").write_text(
+                "table: table.parquet\npython:\n  lookups: scripts/lookups.py\n")
+            self.assertEqual(load_provides("producer", root), {"table": "table.parquet"})
+            config: dict[str, Any] = {"out": "out"}
+            context = module_context(FakeWorkflow(consumer, config), config)
+            path = context.python("producer", "lookups")
+            self.assertEqual(path, str(producer / "scripts" / "lookups.py"))
+            self.assertEqual(context.pythonpath(path, path), str((producer / "scripts").resolve()))
+            with self.assertRaisesRegex(KeyError, "exports no python module 'other'"):
+                context.python("producer", "other")
+            (producer / "provides.yaml").write_text("python:\n  lookups: scripts/other.py\n")
+            with self.assertRaisesRegex(ContractError, "<name>.py"):
+                context.python("producer", "lookups")
+            self.assertTrue(any("producer" in p for p in validate_repo(root)))
+
+
 if __name__ == "__main__":
     unittest.main()

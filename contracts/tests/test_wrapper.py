@@ -142,6 +142,28 @@ class WrapperCommandTests(unittest.TestCase):
         self.assertIn("--sample-name", command)
         self.assertIn("'a b'", command)
 
+    def test_snakemake_wrapper_puts_python_exports_on_pythonpath_not_on_the_command_line(self) -> None:
+        commands: list[str] = []
+        shell_module = types.ModuleType("snakemake.shell")
+        setattr(shell_module, "shell", lambda cmd, **kwargs: commands.append(cmd))
+        sys.modules["snakemake"] = types.ModuleType("snakemake")
+        sys.modules["snakemake.shell"] = shell_module
+        snakemake = types.SimpleNamespace(
+            input={"script": "/tmp/parse.py", "python": ["/x/a/scripts/lookups.py", "/x/a/scripts/other.py",
+                                                         "/x/b/scripts/kernel.py"], "data": "/tmp/in.txt"},
+            output={"output": "/tmp/out.txt"}, log={}, params={}, threads=1, config={},
+        )
+        try:
+            runpy.run_path(str(WRAPPER_SCRIPT), init_globals={"snakemake": snakemake})
+        finally:
+            sys.modules.pop("snakemake.shell", None)
+            sys.modules.pop("snakemake", None)
+
+        (command,) = commands
+        self.assertTrue(command.startswith("PYTHONPATH=/x/a/scripts:/x/b/scripts${PYTHONPATH:+:$PYTHONPATH} "))
+        self.assertIn("--data /tmp/in.txt", command)
+        self.assertNotIn("--python", command)
+
     def test_snakemake_wrapper_cache_does_not_imply_log_arg(self) -> None:
         commands: list[str] = []
         shell_module = types.ModuleType("snakemake.shell")
