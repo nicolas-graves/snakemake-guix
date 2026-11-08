@@ -64,7 +64,8 @@ except (KeyError, AttributeError, TypeError):
 if isinstance(_exports, (str, PathLike)):
     _exports = [_exports]
 _dirs = list(dict.fromkeys(str(Path(path).resolve().parent) for path in _exports))
-_pythonpath = (f"PYTHONPATH={shlex.quote(os.pathsep.join(_dirs))}${{PYTHONPATH:+{os.pathsep}$PYTHONPATH}} "
+# snakemake's shell() formats the command: the shell's own braces are doubled.
+_pythonpath = (f"PYTHONPATH={shlex.quote(os.pathsep.join(_dirs))}${{{{PYTHONPATH:+{os.pathsep}$PYTHONPATH}}}} "
                if _dirs else "")
 
 _threads = str(snakemake.threads)

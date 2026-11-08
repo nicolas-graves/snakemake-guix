@@ -160,7 +160,9 @@ class WrapperCommandTests(unittest.TestCase):
             sys.modules.pop("snakemake", None)
 
         (command,) = commands
-        self.assertTrue(command.startswith("PYTHONPATH=/x/a/scripts:/x/b/scripts${PYTHONPATH:+:$PYTHONPATH} "))
+        # doubled braces: snakemake's shell() formats the command
+        self.assertTrue(command.startswith("PYTHONPATH=/x/a/scripts:/x/b/scripts${{PYTHONPATH:+:$PYTHONPATH}} "))
+        self.assertEqual(command.format(), command.replace("{{", "{").replace("}}", "}"))
         self.assertIn("--data /tmp/in.txt", command)
         self.assertNotIn("--python", command)
 
