@@ -35,11 +35,17 @@ def _repo_root(start: Path) -> Path | None:
     return None
 
 
-def pytest_configure(config: pytest.Config) -> None:
-    root = _repo_root(Path(config.rootpath))
+def _export(start: Path) -> None:
+    root = _repo_root(start)
     if root is None:
         return
     directories = exported_directories(root)
     sys.path.extend(d for d in directories if d not in sys.path)
     inherited = [p for p in os.environ.get("PYTHONPATH", "").split(os.pathsep) if p]
     os.environ["PYTHONPATH"] = os.pathsep.join([*inherited, *(d for d in directories if d not in inherited)])
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_load_initial_conftests(early_config: pytest.Config, parser: pytest.Parser, args: list[str]) -> None:
+    """Before the conftests load, so that they may import an export too."""
+    _export(Path(early_config.invocation_params.dir))
