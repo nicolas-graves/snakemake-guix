@@ -9,5 +9,11 @@ description = "Snakemake rule wrapper that expands named inputs, outputs, and pa
 readme = "README.md"
 requires-python = ">=3.10"
 
+[project.urls]
+Homepage = "https://github.com/nicolas-graves/snakemake-guix"
+Repository = "https://github.com/nicolas-graves/snakemake-guix"
+Source = "https://github.com/nicolas-graves/snakemake-guix/tree/master/contracts/wrapper"
+Issues = "https://github.com/nicolas-graves/snakemake-guix/issues"
+
 [tool.hatch.build.targets.wheel]
 packages = ["snakemake_contracts_wrapper"]

@@ -1,5 +1,7 @@
 # snakemake-contracts
 
+> The source lives in the [snakemake-guix repository](https://github.com/nicolas-graves/snakemake-guix/tree/master/contracts) under `contracts/`. The old standalone `snakemake-contracts` repository stopped at 0.5.0 and is no longer maintained.
+
 A small helper library for Snakemake workflows that use
 `provides` / `requires`-style contracts between modules.
 

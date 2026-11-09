@@ -1,5 +1,7 @@
 # snakemake-contracts-wrapper
 
+> The source lives in the [snakemake-guix repository](https://github.com/nicolas-graves/snakemake-guix/tree/master/contracts/wrapper) under `contracts/wrapper/`. The old standalone `snakemake-contracts` repository stopped at 0.5.0 and is no longer maintained.
+
 Snakemake rule wrapper that expands named `input`, `output`, `log`, and
 `params` objects into script CLI arguments.
 

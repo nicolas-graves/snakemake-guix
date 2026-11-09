@@ -10,6 +10,12 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["PyYAML>=6.0"]
 
+[project.urls]
+Homepage = "https://github.com/nicolas-graves/snakemake-guix"
+Repository = "https://github.com/nicolas-graves/snakemake-guix"
+Source = "https://github.com/nicolas-graves/snakemake-guix/tree/master/contracts"
+Issues = "https://github.com/nicolas-graves/snakemake-guix/issues"
+
 [project.optional-dependencies]
 dev = [
     "mypy>=1.10",
